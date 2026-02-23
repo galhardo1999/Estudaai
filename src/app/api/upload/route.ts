@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         await writeFile(tempFilePath, buffer);
 
         let fileUri = "mock-uri-from-gemini";
-        let mimeType = file.type || "application/pdf"
+        const mimeType = file.type || "application/octet-stream"
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (apiKey) {

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Menu, LogOut } from "lucide-react"
 import { useDocuments } from "@/contexts/DocumentContext"
+import { ThemeToggle } from "@/components/theme/ThemeToggle"
 import { signOut } from "next-auth/react"
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             if (!res.ok) throw new Error("Upload failed")
 
             const data = await res.json()
-            addDocument({ id: data.document.id, name: data.document.name, url: data.document.url })
+            addDocument({ id: data.document.id, name: data.document.name, url: data.document.url, createdAt: Date.now() })
         } catch (error) {
             console.error(error)
             alert("Falha no upload")
@@ -70,12 +71,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
 
-                {/* Desktop Top Header */}
-                <div className="hidden md:flex justify-end p-4 shrink-0 absolute top-0 right-0 z-10">
-                    <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium" title="Sair">
-                        <span>Sair</span>
-                        <LogOut className="w-4 h-4" />
-                    </button>
+                {/* Theme Toggle - Floating Bottom Right */}
+                <div className="fixed bottom-6 right-6 z-50">
+                    <div className="bg-background/80 backdrop-blur-md rounded-full shadow-lg border border-border/50 p-1">
+                        <ThemeToggle />
+                    </div>
                 </div>
 
                 {/* Mobile Sidebar Overlay */}

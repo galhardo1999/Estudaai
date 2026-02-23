@@ -14,6 +14,7 @@
     "@prisma/client": "5",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "next-auth": "4",
