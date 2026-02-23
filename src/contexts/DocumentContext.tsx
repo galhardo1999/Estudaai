@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState } from 'react';
 export type FolderType = {
     id: string;
     name: string;
+    parentId?: string;
     createdAt: number;
 };
 
@@ -25,7 +26,7 @@ interface DocumentContextType {
     activeDocument: DocumentType | null;
 
     folders: FolderType[];
-    addFolder: (name: string) => void;
+    addFolder: (name: string, parentId?: string) => void;
     removeFolder: (id: string) => void;
     currentFolderId: string | null;
     setCurrentFolderId: (id: string | null) => void;
@@ -51,21 +52,29 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const addFolder = (name: string) => {
+    const addFolder = (name: string, parentId?: string) => {
         const newFolder: FolderType = {
             id: crypto.randomUUID(),
             name,
+            parentId,
             createdAt: Date.now(),
         };
         setFolders(prev => [...prev, newFolder]);
     };
 
     const removeFolder = (id: string) => {
-        setFolders(prev => prev.filter(f => f.id !== id));
-        // Also remove or move documents inside this folder? 
-        // For now let's just delete the folder and the documents will be "orphaned" or we delete them too.
-        setDocuments(prev => prev.filter(d => d.folderId !== id));
-        if (currentFolderId === id) {
+        // Collect all subfolder IDs recursively
+        const getSubfolderIds = (folderId: string): string[] => {
+            const children = folders.filter(f => f.parentId === folderId).map(f => f.id);
+            return [...children, ...children.flatMap(getSubfolderIds)];
+        };
+
+        const idsToRemove = [id, ...getSubfolderIds(id)];
+
+        setFolders(prev => prev.filter(f => !idsToRemove.includes(f.id)));
+        setDocuments(prev => prev.filter(d => d.folderId ? !idsToRemove.includes(d.folderId) : true));
+
+        if (currentFolderId && idsToRemove.includes(currentFolderId)) {
             setCurrentFolderId(null);
         }
     };

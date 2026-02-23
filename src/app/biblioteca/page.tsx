@@ -12,14 +12,30 @@ export default function BibliotecaPage() {
     const [newFolderName, setNewFolderName] = useState("")
 
     // Filter items based on current folder
+    const currentFolders = folders.filter(f => f.parentId === (currentFolderId || undefined))
     const currentDocuments = documents.filter(d => d.folderId === (currentFolderId || undefined))
 
-    const currentFolder = folders.find(f => f.id === currentFolderId)
+    // Generate breadcrumbs path
+    const getBreadcrumbs = () => {
+        const path = [];
+        let currentId = currentFolderId;
+        while (currentId) {
+            const folder = folders.find(f => f.id === currentId);
+            if (folder) {
+                path.unshift(folder);
+                currentId = folder.parentId || null;
+            } else {
+                break;
+            }
+        }
+        return path;
+    }
+    const breadcrumbs = getBreadcrumbs();
 
     const handleCreateFolder = (e: React.FormEvent) => {
         e.preventDefault()
         if (newFolderName.trim()) {
-            addFolder(newFolderName.trim())
+            addFolder(newFolderName.trim(), currentFolderId || undefined)
             setNewFolderName("")
             setIsCreateFolderModalOpen(false)
         }
@@ -79,25 +95,28 @@ export default function BibliotecaPage() {
                             <span>Início</span>
                         </button>
 
-                        {currentFolderId && currentFolder && (
-                            <>
+                        {breadcrumbs.map((crumb, index) => (
+                            <div key={crumb.id} className="flex items-center gap-2">
                                 <ChevronRight className="w-4 h-4" />
-                                <span className="text-foreground font-medium">{currentFolder.name}</span>
-                            </>
-                        )}
+                                <button
+                                    onClick={() => setCurrentFolderId(crumb.id)}
+                                    className={`transition-colors flex items-center gap-1 ${index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : 'hover:text-foreground'}`}
+                                >
+                                    <span>{crumb.name}</span>
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {!currentFolderId && (
-                        <button
-                            onClick={() => setIsCreateFolderModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-foreground rounded-lg transition-colors text-sm font-medium border border-border/50"
-                        >
-                            <FolderPlus className="w-4 h-4" />
-                            <span>Nova Pasta</span>
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsCreateFolderModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-foreground rounded-lg transition-colors text-sm font-medium border border-border/50"
+                    >
+                        <FolderPlus className="w-4 h-4" />
+                        <span>Nova Pasta</span>
+                    </button>
 
                     <button
                         onClick={handleFileUploadClick}
@@ -117,11 +136,11 @@ export default function BibliotecaPage() {
             </div>
 
             {/* Folder Grid */}
-            {!currentFolderId && folders.length > 0 && (
+            {currentFolders.length > 0 && (
                 <div className="mb-8">
                     <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Pastas</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {folders.map(folder => (
+                        {currentFolders.map(folder => (
                             <div
                                 key={folder.id}
                                 onClick={() => setCurrentFolderId(folder.id)}
