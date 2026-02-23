@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await request.json();
         const { fileUri, questionCount = 5, topic = "Qualquer assunto abordado no texto" } = body;
 
@@ -31,7 +39,8 @@ export async function POST(request: Request) {
         ]
       }
     ]
-    Não inclua markdown \`\`\`json no texto e não invente dados fora do documento.`;
+    Não inclua markdown \`\`\`json no texto e não invente dados fora do documento. 
+    CERTIFIQUE-SE DE QUE O JSON ESTÁ BEM FORMATADO E VÁLIDO. TODAS AS CHAVES E VALORES DE STRING DEVEM USAR ASPAS DUPLAS.`;
 
         const result = await model.generateContent([
             { fileData: { mimeType: "application/pdf", fileUri } },

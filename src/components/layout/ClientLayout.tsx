@@ -2,9 +2,9 @@
 
 import { useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
-import { Menu } from "lucide-react"
+import { Menu, LogOut } from "lucide-react"
 import { useDocuments } from "@/contexts/DocumentContext"
-import { ThemeToggle } from "@/components/theme/ThemeToggle"
+import { signOut } from "next-auth/react"
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const { documents, activeDocumentId, setActiveDocumentId, addDocument, removeDocument } = useDocuments()
@@ -61,7 +61,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <div className="md:hidden flex items-center justify-between p-4 border-b border-border/50 shrink-0">
                     <span className="font-semibold text-lg text-primary">EstudaAI</span>
                     <div className="flex items-center gap-2">
-                        <ThemeToggle />
+                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Sair">
+                            <LogOut className="w-5 h-5" />
+                        </button>
                         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors">
                             <Menu className="w-6 h-6" />
                         </button>
@@ -70,7 +72,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
                 {/* Desktop Top Header */}
                 <div className="hidden md:flex justify-end p-4 shrink-0 absolute top-0 right-0 z-10">
-                    <ThemeToggle />
+                    <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium" title="Sair">
+                        <span>Sair</span>
+                        <LogOut className="w-4 h-4" />
+                    </button>
                 </div>
 
                 {/* Mobile Sidebar Overlay */}
@@ -78,6 +83,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <div className="absolute inset-0 z-50 flex md:hidden">
                         <div className="w-72 shadow-2xl h-full flex flex-col bg-background">
                             <Sidebar
+                                className="flex"
                                 documents={documents}
                                 onUpload={(file) => {
                                     handleUpload(file)

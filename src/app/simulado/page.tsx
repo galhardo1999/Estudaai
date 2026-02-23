@@ -37,7 +37,7 @@ export default function SimuladoPage() {
 
                 const data = await res.json()
                 addDocument({ id: data.document.id, name: data.document.name, url: data.document.url })
-                alert("Arquivo carregado e processado pela IA com sucesso!")
+
             } catch (error) {
                 console.error("Erro no upload", error)
                 alert("Falha ao carregar o arquivo.")
@@ -118,8 +118,8 @@ export default function SimuladoPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-zinc-300">Material de Estudo (PDF/TXT)</label>
-                        <label className={`flex items-center justify-center gap-2 w-full px-4 py-8 bg-background border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-zinc-700 hover:border-zinc-500 text-zinc-300 cursor-pointer group'}`}>
+                        <label className="text-sm font-medium text-foreground">Material de Estudo (PDF/TXT)</label>
+                        <label className={`flex items-center justify-center gap-2 w-full px-4 py-8 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
                             {isUploading ? (
                                 <>
                                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -137,25 +137,25 @@ export default function SimuladoPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-zinc-300">Sobre qual assunto é o simulado?</label>
+                        <label className="text-sm font-medium text-foreground">Sobre qual assunto é o simulado?</label>
                         <textarea
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
                             placeholder="Ex: Foque apenas em Atos Administrativos e Poderes da Administração..."
-                            className="w-full bg-background border border-border rounded-xl p-4 min-h-[100px] text-sm focus:outline-none focus:border-primary resize-none placeholder:text-zinc-600"
+                            className="w-full bg-secondary/30 border border-input rounded-xl p-4 min-h-[100px] text-sm focus:outline-none focus:border-primary resize-none placeholder:text-muted-foreground text-foreground"
                         />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-zinc-300">Quantas questões?</label>
+                        <label className="text-sm font-medium text-foreground">Quantas questões?</label>
                         <div className="flex flex-wrap gap-3">
                             {[30, 40, 45, 60, 90, 120].map((count) => (
                                 <button
                                     key={count}
                                     onClick={() => setQuestionCount(count)}
                                     className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${questionCount === count
-                                            ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                                            : "bg-background border-border hover:border-zinc-500 text-zinc-400"
+                                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                                        : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
                                         }`}
                                 >
                                     {count}
@@ -165,15 +165,15 @@ export default function SimuladoPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-zinc-300">Quanto tempo limite?</label>
+                        <label className="text-sm font-medium text-foreground">Quanto tempo limite?</label>
                         <div className="flex flex-wrap gap-3">
                             {[15, 30, 45, 60, 90, 120].map((time) => (
                                 <button
                                     key={time}
                                     onClick={() => setTimeLimit(time)}
                                     className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${timeLimit === time
-                                            ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                                            : "bg-background border-border hover:border-zinc-500 text-zinc-400"
+                                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                                        : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
                                         }`}
                                 >
                                     {time} min

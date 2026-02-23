@@ -6,6 +6,7 @@ import Link from "next/link"
 import { FileText, UploadCloud, BrainCircuit, Notebook, LogOut, X, Target, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme/ThemeToggle"
+import { signOut } from "next-auth/react"
 
 interface SidebarProps {
     documents: { id: string; name: string }[]
@@ -13,6 +14,7 @@ interface SidebarProps {
     activeDocumentId: string | null
     onSelectDocument: (id: string) => void
     onRemoveDocument: (id: string) => void
+    className?: string
 }
 
 export function Sidebar({
@@ -20,7 +22,8 @@ export function Sidebar({
     onUpload,
     activeDocumentId,
     onSelectDocument,
-    onRemoveDocument
+    onRemoveDocument,
+    className
 }: SidebarProps) {
     const [isHovering, setIsHovering] = useState(false)
     const pathname = usePathname()
@@ -32,7 +35,7 @@ export function Sidebar({
     }
 
     return (
-        <aside className="w-72 h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex">
+        <aside className={cn("w-72 h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex", className)}>
             {/* Brand */}
             <div className="h-16 flex items-center px-6 border-b border-border/50">
                 <div className="flex items-center gap-2 text-foreground font-semibold text-lg">
@@ -143,13 +146,20 @@ export function Sidebar({
 
             {/* User Area */}
             <div className="p-4 border-t border-border/50 flex items-center justify-between gap-2">
-                <button className="flex items-center gap-3 px-3 py-2 flex-1 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-zinc-800/30 rounded-lg transition-colors">
-                    <div className="w-6 h-6 rounded-full bg-zinc-700 shrink-0" />
+                <div className="flex items-center gap-3 px-3 py-2 flex-1 text-sm font-medium text-foreground rounded-lg">
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] font-bold text-primary">AG</span>
+                    </div>
                     <span className="flex-1 text-left truncate">Aluno Gênio</span>
-                    <LogOut className="w-4 h-4 text-zinc-500" />
-                </button>
+                </div>
                 <div className="w-px h-6 bg-border/50 mx-1 shrink-0"></div>
-                <ThemeToggle />
+                <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                    title="Sair"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
             </div>
         </aside>
     )

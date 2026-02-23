@@ -83,7 +83,7 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            className="w-full bg-zinc-900/50 border border-border/50 rounded-xl py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            className="w-full bg-secondary/30 border border-input rounded-xl py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                         />
                     </div>
                     <div className="relative">
@@ -94,7 +94,7 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            className="w-full bg-zinc-900/50 border border-border/50 rounded-xl py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            className="w-full bg-secondary/30 border border-input rounded-xl py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                         />
                     </div>
 
@@ -121,7 +121,7 @@ export default function LoginPage() {
                     onClick={handleGoogleLogin}
                     disabled={isLoading || isGoogleLoading}
                     type="button"
-                    className="w-full flex items-center justify-center gap-3 bg-zinc-900/50 hover:bg-zinc-800/80 border border-border/50 text-foreground transition-all rounded-xl py-3 px-6 font-medium group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-3 bg-secondary/30 hover:bg-secondary/50 border border-input text-foreground transition-all rounded-xl py-3 px-6 font-medium group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGoogleLoading ? (
                         <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
