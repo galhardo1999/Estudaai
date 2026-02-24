@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { streamObject } from "ai";
-import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -48,12 +48,12 @@ export async function POST(request: Request) {
                     })
                 ),
             }),
-            system: `Baseando-se estritamente nos documentos anexados, gere questões de múltipla escolha para um simulado de concurso. Você é um estruturador de JSON.`,
+            system: `Baseando-se estritamente nos documentos anexados, gere questões de múltipla escolha para um simulado de concurso. Você é um estruturador de JSON. CADA QUESTÃO DEVE TER EXATAMENTE 5 OPÇÕES (A, B, C, D, E).`,
             messages: [
                 {
                     role: "user" as const,
                     content: [
-                        { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Baseie as perguntas no material fornecido.` },
+                        { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Baseie as perguntas no material fornecido. Lembre-se: é OBRIGATÓRIO fornecer 5 alternativas (A, B, C, D, E) para cada questão, sendo apenas 1 correta.` },
                         { type: "text" as const, text: "Material de Estudo:" },
                         ...fileUris.map(uri => {
                             return {

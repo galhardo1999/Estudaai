@@ -34,9 +34,10 @@ export default function RegisterPage() {
 
             // Immediately redirect to login after successful registration
             router.push("/login?registered=true")
-        } catch (error: any) {
-            setError(error.message || "Ocorreu um erro inesperado.")
-            console.error(error)
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro inesperado."
+            setError(errorMessage)
+            console.error(err)
         } finally {
             setIsLoading(false)
         }

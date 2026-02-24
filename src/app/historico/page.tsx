@@ -44,7 +44,7 @@ export default async function HistoricoPage() {
                 </header>
 
                 <div className="grid gap-4">
-                    {exams.map((exam: any) => {
+                    {exams.map((exam) => {
                         // Format the date
                         const dateObj = new Date(exam.criadoEm);
                         const formattedDate = new Intl.DateTimeFormat('pt-BR', {

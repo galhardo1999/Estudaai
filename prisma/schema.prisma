@@ -52,6 +52,7 @@ model User {
   sessions      Session[]
   documentos    Documento[]
   exames        Exame[]
+  resumos       Resumo[]
 }
 
 model VerificationToken {
@@ -77,9 +78,21 @@ model Exame {
   pontuacao     Int
   totalQuestoes Int
   duracao       Int      // Tempo gasto em segundos
+  questoes      Json?    // Estrutura das perguntas passadas
+  respostas     Json?    // Mapeamento do id_da_questao -> id_da_opcao escolhida
   criadoEm      DateTime @default(now())
   usuarioId     String
   usuario       User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   documentoId   String?
   documento     Documento? @relation(fields: [documentoId], references: [id], onDelete: SetNull)
+}
+
+model Resumo {
+  id          String   @id @default(uuid())
+  tipo        String   // "resumo" | "flashcards"
+  nomeArquivo String
+  conteudo    String   @db.Text
+  criadoEm   DateTime @default(now())
+  usuarioId   String
+  usuario     User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }

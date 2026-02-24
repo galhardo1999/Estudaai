@@ -39,7 +39,8 @@ export async function POST(req: Request) {
         });
 
         // Hide password before returning
-        const { senha, ...userWithoutPassword } = newUser;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { senha: _senha, ...userWithoutPassword } = newUser;
 
         return NextResponse.json(userWithoutPassword, { status: 201 });
     } catch (error) {

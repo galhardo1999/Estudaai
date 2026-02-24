@@ -3,36 +3,18 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { FileText, UploadCloud, BrainCircuit, LogOut, X, Target, BookOpen, Library, ChevronLeft, ChevronRight } from "lucide-react"
+import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 
 interface SidebarProps {
-    documents: { id: string; name: string }[]
-    onUpload: (file: File) => void
-    activeDocumentId: string | null
-    onSelectDocument: (id: string) => void
-    onRemoveDocument: (id: string) => void
     className?: string
 }
 
-export function Sidebar({
-    documents,
-    onUpload,
-    activeDocumentId,
-    onSelectDocument,
-    onRemoveDocument,
-    className
-}: SidebarProps) {
+export function Sidebar({ className }: SidebarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const pathname = usePathname()
     const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico'))
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            onUpload(e.target.files[0])
-        }
-    }
 
     return (
         <aside className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>

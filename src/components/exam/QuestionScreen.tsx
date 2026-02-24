@@ -21,9 +21,8 @@ interface QuestionScreenProps {
     totalQuestions: number
     question: Question
     onNext: () => void
-    onAnswer: (isCorrect: boolean) => void
-    errorsCount: number
-    correctCount: number
+    onAnswer: (isCorrect: boolean, questionId: string, optionId: string) => void
+    timeRemaining: number
 }
 
 export function QuestionScreen({
@@ -32,19 +31,24 @@ export function QuestionScreen({
     question,
     onNext,
     onAnswer,
-    errorsCount,
-    correctCount,
+    timeRemaining,
 }: QuestionScreenProps) {
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
 
     const progressPercentage = ((questionIndex) / totalQuestions) * 100
+
+    // Format timeRemaining as mm:ss
+    const minutes = Math.floor(timeRemaining / 60)
+    const seconds = timeRemaining % 60
+    const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    const isLowTime = timeRemaining <= 60
 
     const handleSelect = (optionId: string) => {
         if (selectedOptionId) return // Already answered
         setSelectedOptionId(optionId)
         const option = question.options.find(o => o.id === optionId)
         if (option) {
-            onAnswer(option.isCorrect)
+            onAnswer(option.isCorrect, question.id, option.id)
         }
     }
 
@@ -62,14 +66,12 @@ export function QuestionScreen({
 
                 <div className="flex items-center gap-4 text-sm font-medium text-zinc-400">
                     <span>{questionIndex + 1} / {totalQuestions}</span>
-                    <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1.5 text-danger bg-danger-bg/30 px-2 py-0.5 rounded-full text-xs">
-                            <X className="w-3 h-3" /> {errorsCount}
-                        </span>
-                        <span className="flex items-center gap-1.5 text-success bg-success-bg/30 px-2 py-0.5 rounded-full text-xs">
-                            <Check className="w-3 h-3" /> {correctCount}
-                        </span>
-                    </div>
+                    <span className={cn(
+                        "font-mono tabular-nums transition-colors",
+                        isLowTime ? "text-danger animate-pulse" : "text-zinc-400"
+                    )}>
+                        ⏱ {formattedTime}
+                    </span>
                 </div>
             </div>
 
@@ -83,14 +85,14 @@ export function QuestionScreen({
                 </div>
 
                 <div className="flex flex-col gap-3 w-full ml-0 md:ml-8">
-                    {question.options.map((option) => {
+                    {(question.options ?? []).map((option) => {
                         const isSelected = selectedOptionId === option.id
                         const isAnswered = selectedOptionId !== null
                         const isCorrectOption = option.isCorrect
 
                         // Determine state classes
                         let stateClasses = "bg-card border-border hover:bg-card-hover"
-                        let textClasses = "text-foreground"
+                        const textClasses = "text-foreground"
 
                         if (isAnswered) {
                             if (isSelected) {

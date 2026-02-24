@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { experimental_useObject as useObject } from "@ai-sdk/react"
 import { z } from "zod"
 import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
@@ -9,19 +9,21 @@ import { useDocuments } from "@/contexts/DocumentContext"
 import { FileText, Trash2 } from "lucide-react"
 
 export default function SimuladoPage() {
-    const [questions, setQuestions] = useState<Question[]>([])
+    const [questions] = useState<Question[]>([])
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     const [isFinished, setIsFinished] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [correctCount, setCorrectCount] = useState(0)
     const [wrongCount, setWrongCount] = useState(0)
+    const [userAnswers, setUserAnswers] = useState<Record<string, string>>({})
 
-    const { addDocument, activeDocument, documents, setActiveDocumentId, removeDocument } = useDocuments()
+    const { addDocument, documents, removeDocument } = useDocuments()
     const [isSetupState, setIsSetupState] = useState(true)
     const [generationProgress, setGenerationProgress] = useState(0)
     const [topic, setTopic] = useState("")
     const [questionCount, setQuestionCount] = useState(30)
     const [timeLimit, setTimeLimit] = useState(60)
+    const [timeRemaining, setTimeRemaining] = useState(60 * 60) // in seconds
     const [isUploading, setIsUploading] = useState(false)
 
     const handleUploadDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +63,7 @@ export default function SimuladoPage() {
     }
 
     // AI Stream Hook
-    const { object, submit, isLoading, error } = useObject({
+    const { object, submit, isLoading } = useObject({
         api: "/api/generate-exam",
         schema: z.object({
             questions: z.array(
@@ -80,8 +82,8 @@ export default function SimuladoPage() {
                 })
             ),
         }),
-        onFinish(event: any) {
-            handleRestart()
+        onFinish() {
+            // Streaming finished, nothing to reset – the user continues naturally
         },
         onError(err: Error) {
             console.error(err)
@@ -101,16 +103,43 @@ export default function SimuladoPage() {
 
         const timer = setInterval(() => {
             setGenerationProgress(prev => {
-                if (prev >= 95) return 95;
-                return prev + 5;
+                if (prev >= 99) return 99;
+                return prev + 1; // Faster visual progression
             });
-        }, 500);
+        }, 100);
 
         return () => clearInterval(timer);
     }, [isLoading, hasStartedReceiving]);
 
+    // Keep a ref so the timer interval always has fresh state without stale closures
+    const timeoutCallbackRef = useRef<() => void>(() => { });
+    useEffect(() => {
+        timeoutCallbackRef.current = () => {
+            saveAndFinishExam(activeQuestionsList, userAnswers, correctCount);
+        };
+    });
+
+    // Countdown timer - starts as soon as the first question appears
+    useEffect(() => {
+        if (isSetupState || isFinished || !hasStartedReceiving) return;
+
+        const timer = setInterval(() => {
+            setTimeRemaining(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    timeoutCallbackRef.current();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [isSetupState, isFinished, hasStartedReceiving]);
+
     const handleGenerateExam = () => {
         setGenerationProgress(0)
+        setTimeRemaining(timeLimit * 60)
         setIsSetupState(false)
         submit({
             fileUris: documents.map(d => d.url),
@@ -119,7 +148,8 @@ export default function SimuladoPage() {
         })
     }
 
-    const handleAnswer = (isCorrect: boolean) => {
+    const handleAnswer = (isCorrect: boolean, questionId: string, optionId: string) => {
+        setUserAnswers(prev => ({ ...prev, [questionId]: optionId }))
         if (isCorrect) {
             setCorrectCount(prev => prev + 1)
         } else {
@@ -127,7 +157,33 @@ export default function SimuladoPage() {
         }
     }
 
-    const activeQuestionsList = questions.length > 0 ? questions : (questionsStream as Question[]);
+    // Only include questions that are fully streamed (have options array)
+    const rawList = questions.length > 0 ? questions : (questionsStream as Question[]);
+    const activeQuestionsList = rawList.filter(q => q && Array.isArray(q.options) && q.options.length > 0);
+
+    const saveAndFinishExam = async (questionsList: Question[], answers: Record<string, string>, correct: number) => {
+        setIsSaving(true)
+        try {
+            const totalSeconds = timeLimit * 60 - timeRemaining;
+
+            await fetch("/api/save-exam", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pontuacao: correct,
+                    totalQuestoes: questionsList.length,
+                    duracao: totalSeconds,
+                    questoes: questionsList,
+                    respostas: answers
+                })
+            });
+        } catch (error) {
+            console.error("Failed to save exam to history:", error);
+        } finally {
+            setIsFinished(true)
+            setIsSaving(false)
+        }
+    }
 
     const handleNext = async () => {
         if (currentQuestionIndex < activeQuestionsList.length - 1) {
@@ -136,27 +192,7 @@ export default function SimuladoPage() {
             // Se chegou no final dos chunks E ainda tá carregando, bloqueia avanço
             if (isGenerating && currentQuestionIndex === activeQuestionsList.length - 1) return;
 
-            setIsSaving(true)
-
-            try {
-                const savedDocId = documents.length > 0 ? documents[0].id : null;
-
-                await fetch("/api/save-exam", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        pontuacao: correctCount,
-                        totalQuestoes: activeQuestionsList.length,
-                        duracao: 0, // Implementar timer no futuro
-                        documentoId: null
-                    })
-                });
-            } catch (error) {
-                console.error("Failed to save exam to history:", error);
-            } finally {
-                setIsFinished(true)
-                setIsSaving(false)
-            }
+            await saveAndFinishExam(activeQuestionsList, userAnswers, correctCount)
         }
     }
 
@@ -165,6 +201,8 @@ export default function SimuladoPage() {
         setIsFinished(false)
         setCorrectCount(0)
         setWrongCount(0)
+        setUserAnswers({})
+        setTimeRemaining(timeLimit * 60)
         setIsSetupState(false)
     }
 
@@ -187,7 +225,7 @@ export default function SimuladoPage() {
                     </div>
 
                     <div>
-                        <label className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
+                        <label className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-16 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
                             {isUploading ? (
                                 <>
                                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -196,40 +234,34 @@ export default function SimuladoPage() {
                             ) : (
                                 <>
                                     <span className="text-center">Clique para fazer upload ou<br />arraste os arquivos</span>
-                                    <input type="file" multiple className="hidden" accept=".pdf,.txt" onChange={handleUploadDocument} disabled={isUploading} />
+                                    <input type="file" multiple className="hidden" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png" onChange={handleUploadDocument} disabled={isUploading} />
                                 </>
                             )}
                         </label>
+                        <p className="text-xs text-muted-foreground text-center">Formatos aceitos: PDF, TXT, DOC, DOCX</p>
                     </div>
 
                     <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[200px] pr-2">
-                        {documents.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-border/50 rounded-xl h-32">
-                                <FileText className="w-8 h-8 text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground">Nenhum documento anexado.</p>
-                            </div>
-                        ) : (
-                            documents.map(doc => (
-                                <div
-                                    key={doc.id}
-                                    className="p-3 rounded-xl border border-border/50 flex items-center justify-between transition-colors hover:bg-zinc-800/50"
-                                >
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="p-2 rounded-lg shrink-0 bg-zinc-800 text-zinc-400">
-                                            <FileText className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-sm font-medium truncate">{doc.name}</span>
+                        {documents.map(doc => (
+                            <div
+                                key={doc.id}
+                                className="p-3 rounded-xl border border-border/50 flex items-center justify-between transition-colors hover:bg-zinc-800/50"
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="p-2 rounded-lg shrink-0 bg-zinc-800 text-zinc-400">
+                                        <FileText className="w-4 h-4" />
                                     </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); removeDocument(doc.id); }}
-                                        className="p-1.5 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md shrink-0 ml-2"
-                                        title="Remover documento"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <span className="text-sm font-medium truncate">{doc.name}</span>
                                 </div>
-                            ))
-                        )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); removeDocument(doc.id); }}
+                                    className="p-1.5 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md shrink-0 ml-2"
+                                    title="Remover documento"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -338,12 +370,6 @@ export default function SimuladoPage() {
                         </span>
                     </div>
                 </div>
-
-                <h2 className="text-xl font-medium">A IA está lendo seu material e criando questões...</h2>
-                <p className="text-zinc-400 mt-2 mb-1">Focando no assunto: {topic || "Geral"}</p>
-                <p className="text-zinc-500 text-sm">
-                    Iniciando inteligência artificial...
-                </p>
             </div>
         )
     }
@@ -372,13 +398,8 @@ export default function SimuladoPage() {
 
     return (
         <div className="relative min-h-screen">
-            {/* Streaming Indicator Banner - only shows briefly when active */}
-            {isGenerating && hasStartedReceiving && (
-                <div className="absolute top-4 right-4 bg-primary/20 text-primary px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-primary" />
-                    Gerando mais questões...
-                </div>
-            )}
+
+
 
             {activeQuestionsList[currentQuestionIndex] ? (
                 <QuestionScreen
@@ -388,8 +409,7 @@ export default function SimuladoPage() {
                     question={activeQuestionsList[currentQuestionIndex] as Question}
                     onNext={handleNext}
                     onAnswer={handleAnswer}
-                    correctCount={correctCount}
-                    errorsCount={wrongCount}
+                    timeRemaining={timeRemaining}
                 />
             ) : (
                 <div className="flex items-center justify-center min-h-screen">

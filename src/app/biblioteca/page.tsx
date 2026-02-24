@@ -248,7 +248,7 @@ export default function BibliotecaPage() {
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <h3 className="font-medium text-sm text-foreground truncate pr-6" title={doc.name}>{doc.name}</h3>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            {formatDistanceToNow(doc.createdAt || Date.now(), { addSuffix: true, locale: ptBR })}
+                                            {formatDistanceToNow(doc.createdAt || 0, { addSuffix: true, locale: ptBR })}
                                         </p>
                                     </div>
                                 </div>
