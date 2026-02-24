@@ -30,7 +30,7 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="h-16 flex items-center px-6 border-b border-border/50">
                 <div className={cn("flex items-center text-foreground font-semibold text-lg transition-all", isCollapsed ? "justify-center w-full" : "gap-2")}>
                     <BrainCircuit className="w-6 h-6 shrink-0 text-primary" />
-                    {!isCollapsed && <span>EstudosAI</span>}
+                    {!isCollapsed && <span>EstudaAI</span>}
                 </div>
             </div>
 

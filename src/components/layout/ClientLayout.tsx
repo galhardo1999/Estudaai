@@ -38,13 +38,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex h-screen bg-background overflow-hidden flex-col md:flex-row">
             {/* Desktop Sidebar */}
-            <Sidebar
-                documents={documents}
-                onUpload={handleUpload}
-                activeDocumentId={activeDocumentId}
-                onSelectDocument={setActiveDocumentId}
-                onRemoveDocument={removeDocument}
-            />
+            <Sidebar />
 
             {/* Mobile Header & Content */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -84,19 +78,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <div className="w-72 shadow-2xl h-full flex flex-col bg-background">
                             <Sidebar
                                 className="flex"
-                                documents={documents}
-                                onUpload={(file) => {
-                                    handleUpload(file)
-                                    setIsMobileMenuOpen(false)
-                                }}
-                                activeDocumentId={activeDocumentId}
-                                onSelectDocument={(id) => {
-                                    setActiveDocumentId(id)
-                                    setIsMobileMenuOpen(false)
-                                }}
-                                onRemoveDocument={(id) => {
-                                    removeDocument(id)
-                                }}
                             />
                         </div>
                         <div

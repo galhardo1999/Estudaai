@@ -1,0 +1,45 @@
+﻿bun : $ next build
+No linha:1 caractere:1
++ bun run build > build.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ($ next bu 
+   ild:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Ôû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local, .env
+
+ÔÜá The "middleware" file convention is deprecated. 
+Please use "proxy" instead. Learn more: 
+https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 5.1s
+  Running TypeScript ...
+Failed to compile.
+
+./src/components/layout/ClientLayout.tsx:42:17
+Type error: Type '{ documents: DocumentType[]; 
+onUpload: (file: File) => Promise<void>; 
+activeDocumentId: string | null; onSelectDocument: 
+(id: string | null) => void; onRemoveDocument: (id: 
+string) => void; }' is not assignable to type 
+'IntrinsicAttributes & SidebarProps'.
+  Property 'documents' does not exist on type 
+'IntrinsicAttributes & SidebarProps'.
+
+[0m [90m 40 |[39m             {[90m/* Desktop 
+Sidebar */[39m}
+ [90m 41 |[39m             
+[33m<[39m[33mSidebar[39m
+[31m[1m>[22m[39m[90m 42 |[39m                 
+documents[33m=[39m{documents}
+ [90m    |[39m                 [31m[1m^[22m[39m
+ [90m 43 |[39m                 
+onUpload[33m=[39m{handleUpload}
+ [90m 44 |[39m                 
+activeDocumentId[33m=[39m{activeDocumentId}
+ [90m 45 |[39m                 
+onSelectDocument[33m=[39m{setActiveDocumentId}[0m
+Next.js build worker exited with code: 1 and signal: 
+null
+error: script "build" exited with code 1
