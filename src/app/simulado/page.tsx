@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { experimental_useObject as useObject } from "@ai-sdk/react"
+import { z } from "zod"
 import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
 import { ResultDashboard } from "@/components/exam/ResultDashboard"
 import { useDocuments } from "@/contexts/DocumentContext"
@@ -14,12 +16,9 @@ export default function SimuladoPage() {
     const [correctCount, setCorrectCount] = useState(0)
     const [wrongCount, setWrongCount] = useState(0)
 
-    // Setup States
     const { addDocument, activeDocument, documents, setActiveDocumentId, removeDocument } = useDocuments()
     const [isSetupState, setIsSetupState] = useState(true)
-    const [isGenerating, setIsGenerating] = useState(false)
     const [generationProgress, setGenerationProgress] = useState(0)
-    const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0)
     const [topic, setTopic] = useState("")
     const [questionCount, setQuestionCount] = useState(30)
     const [timeLimit, setTimeLimit] = useState(60)
@@ -61,58 +60,63 @@ export default function SimuladoPage() {
         }
     }
 
-    useEffect(() => {
-        if (!isGenerating) return;
+    // AI Stream Hook
+    const { object, submit, isLoading, error } = useObject({
+        api: "/api/generate-exam",
+        schema: z.object({
+            questions: z.array(
+                z.object({
+                    id: z.string(),
+                    text: z.string(),
+                    options: z.array(
+                        z.object({
+                            id: z.string(),
+                            letter: z.string(),
+                            text: z.string(),
+                            isCorrect: z.boolean(),
+                            explanation: z.string().optional(),
+                        })
+                    ),
+                })
+            ),
+        }),
+        onFinish(event: any) {
+            handleRestart()
+        },
+        onError(err: Error) {
+            console.error(err)
+            alert("Erro ao gerar simulado com Inteligência Artificial.")
+            setIsSetupState(true)
+        }
+    })
 
-        // Estimate ~1.5 seconds per question
-        const estimatedSeconds = questionCount * 1.5;
-        const updateIntervalMs = 1000;
-        const increment = 100 / estimatedSeconds;
+    const questionsStream = object?.questions || [];
+    const isGenerating = isLoading; // Rename internally for easier conditional logic
+    // We consider the generation "usable" as soon as it gives us the first complete question
+    const hasStartedReceiving = questionsStream.length > 0;
+
+    // We keep this to animate the spinner if the very first chunk takes a while
+    useEffect(() => {
+        if (!isLoading || hasStartedReceiving) return;
 
         const timer = setInterval(() => {
             setGenerationProgress(prev => {
-                if (prev >= 95) return 95; // Hold at 95% until complete
-                return prev + increment;
+                if (prev >= 95) return 95;
+                return prev + 5;
             });
-            setEstimatedTimeRemaining(prev => Math.max(0, prev - 1));
-        }, updateIntervalMs);
+        }, 500);
 
         return () => clearInterval(timer);
-    }, [isGenerating, questionCount]);
+    }, [isLoading, hasStartedReceiving]);
 
-    const handleGenerateExam = async () => {
-        setIsGenerating(true)
+    const handleGenerateExam = () => {
         setGenerationProgress(0)
-        setEstimatedTimeRemaining(Math.ceil(questionCount * 1.5))
         setIsSetupState(false)
-        try {
-            const res = await fetch("/api/generate-exam", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    fileUris: documents.map(d => d.url),
-                    topic: topic || "Conhecimentos gerais do documento",
-                    questionCount
-                })
-            })
-
-            if (!res.ok) throw new Error("Failed to generate exam")
-
-            const data = await res.json()
-            if (data.questions && data.questions.length > 0) {
-                setGenerationProgress(100)
-                setTimeout(() => {
-                    setQuestions(data.questions)
-                    handleRestart()
-                    setIsGenerating(false)
-                }, 500)
-                return; // early return to wait for animation
-            }
-        } catch (error) {
-            console.error(error)
-            alert("Erro ao gerar novo simulado. Usando mock.")
-            setIsGenerating(false)
-        }
+        submit({
+            fileUris: documents.map(d => d.url),
+            topic: topic || "Conhecimentos gerais do documento",
+            questionCount
+        })
     }
 
     const handleAnswer = (isCorrect: boolean) => {
@@ -123,14 +127,18 @@ export default function SimuladoPage() {
         }
     }
 
+    const activeQuestionsList = questions.length > 0 ? questions : (questionsStream as Question[]);
+
     const handleNext = async () => {
-        if (currentQuestionIndex < questions.length - 1) {
+        if (currentQuestionIndex < activeQuestionsList.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1)
         } else {
+            // Se chegou no final dos chunks E ainda tá carregando, bloqueia avanço
+            if (isGenerating && currentQuestionIndex === activeQuestionsList.length - 1) return;
+
             setIsSaving(true)
 
             try {
-                // Determine document ID for relation, prefer first active/used doc if available
                 const savedDocId = documents.length > 0 ? documents[0].id : null;
 
                 await fetch("/api/save-exam", {
@@ -138,7 +146,7 @@ export default function SimuladoPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         pontuacao: correctCount,
-                        totalQuestoes: questions.length,
+                        totalQuestoes: activeQuestionsList.length,
                         duracao: 0, // Implementar timer no futuro
                         documentoId: null
                     })
@@ -165,8 +173,8 @@ export default function SimuladoPage() {
         setTopic("")
     }
 
-    // Ignoradas = total - (corretas + erradas)
-    const skippedCount = questions.length - (correctCount + wrongCount)
+    // Ignoradas = total - (corretas + erradas), default to current generated length
+    const skippedCount = activeQuestionsList.length - (correctCount + wrongCount)
 
     if (isSetupState) {
         return (
@@ -295,7 +303,8 @@ export default function SimuladoPage() {
         )
     }
 
-    if (isGenerating) {
+    // Only show full-page loader if we haven't received ANY chunks yet
+    if (isGenerating && !hasStartedReceiving) {
         const radius = 45;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (generationProgress / 100) * circumference;
@@ -333,7 +342,7 @@ export default function SimuladoPage() {
                 <h2 className="text-xl font-medium">A IA está lendo seu material e criando questões...</h2>
                 <p className="text-zinc-400 mt-2 mb-1">Focando no assunto: {topic || "Geral"}</p>
                 <p className="text-zinc-500 text-sm">
-                    Tempo estimado restante: ~{estimatedTimeRemaining} segundos
+                    Iniciando inteligência artificial...
                 </p>
             </div>
         )
@@ -342,7 +351,7 @@ export default function SimuladoPage() {
     if (isFinished) {
         return (
             <ResultDashboard
-                totalQuestions={questions.length}
+                totalQuestions={activeQuestionsList.length}
                 correctCount={correctCount}
                 wrongCount={wrongCount}
                 skippedCount={skippedCount}
@@ -363,16 +372,30 @@ export default function SimuladoPage() {
 
     return (
         <div className="relative min-h-screen">
-            <QuestionScreen
-                key={currentQuestionIndex}
-                questionIndex={currentQuestionIndex}
-                totalQuestions={questions.length}
-                question={questions[currentQuestionIndex]}
-                onNext={handleNext}
-                onAnswer={handleAnswer}
-                correctCount={correctCount}
-                errorsCount={wrongCount}
-            />
+            {/* Streaming Indicator Banner - only shows briefly when active */}
+            {isGenerating && hasStartedReceiving && (
+                <div className="absolute top-4 right-4 bg-primary/20 text-primary px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    Gerando mais questões...
+                </div>
+            )}
+
+            {activeQuestionsList[currentQuestionIndex] ? (
+                <QuestionScreen
+                    key={currentQuestionIndex}
+                    questionIndex={currentQuestionIndex}
+                    totalQuestions={questionCount} // Show the planned total
+                    question={activeQuestionsList[currentQuestionIndex] as Question}
+                    onNext={handleNext}
+                    onAnswer={handleAnswer}
+                    correctCount={correctCount}
+                    errorsCount={wrongCount}
+                />
+            ) : (
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            )}
         </div>
     )
 }

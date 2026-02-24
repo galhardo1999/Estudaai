@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI, Schema, SchemaType } from "@google/generative-ai";
+import { streamObject } from "ai";
+import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
+import { z } from "zod";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
@@ -23,55 +25,50 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const responseSchema: Schema = {
-            type: SchemaType.ARRAY,
-            items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                    id: { type: SchemaType.STRING },
-                    text: { type: SchemaType.STRING },
-                    options: {
-                        type: SchemaType.ARRAY,
-                        items: {
-                            type: SchemaType.OBJECT,
-                            properties: {
-                                id: { type: SchemaType.STRING },
-                                letter: { type: SchemaType.STRING },
-                                text: { type: SchemaType.STRING },
-                                isCorrect: { type: SchemaType.BOOLEAN },
-                                explanation: { type: SchemaType.STRING },
-                            },
-                        },
-                    },
-                },
-            },
-        };
-
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
-            },
+        const googleProvider = createGoogleGenerativeAI({
+            apiKey: apiKey,
         });
 
-        const prompt = `Baseando-se estritamente nos documentos anexados, gere ${questionCount} questões de múltipla escolha para um simulado de concurso.
-    O foco principal das questões deve ser sobre o seguinte assunto/tópico: "${topic}". Se o tópico for amplo ou não especificado, aborde o conteúdo geral dos documentos de forma equilibrada.
-    Retorne as questões conforme o schema especificado.`;
+        const result = streamObject({
+            model: googleProvider("gemini-2.5-flash"),
+            schema: z.object({
+                questions: z.array(
+                    z.object({
+                        id: z.string(),
+                        text: z.string(),
+                        options: z.array(
+                            z.object({
+                                id: z.string(),
+                                letter: z.string(),
+                                text: z.string(),
+                                isCorrect: z.boolean(),
+                                explanation: z.string().optional(),
+                            })
+                        ),
+                    })
+                ),
+            }),
+            system: `Baseando-se estritamente nos documentos anexados, gere questões de múltipla escolha para um simulado de concurso. Você é um estruturador de JSON.`,
+            messages: [
+                {
+                    role: "user" as const,
+                    content: [
+                        { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Baseie as perguntas no material fornecido.` },
+                        { type: "text" as const, text: "Material de Estudo:" },
+                        ...fileUris.map(uri => {
+                            return {
+                                type: "file" as const,
+                                data: new URL(uri),
+                                mediaType: "application/pdf"
+                            }
+                        })
+                    ]
+                }
+            ],
+            temperature: 0.2, // Mantém a resposta descritiva porém concisa e lógica para questões
+        });
 
-        const fileParts = fileUris.map(uri => ({ fileData: { mimeType: "application/pdf", fileUri: uri } }));
-
-        const result = await model.generateContent([
-            ...fileParts,
-            { text: prompt }
-        ]);
-
-        const text = result.response.text();
-        // Parse JSON (Structured Outputs guarantee it's raw JSON)
-        const questions = JSON.parse(text);
-
-        return NextResponse.json({ questions });
+        return result.toTextStreamResponse();
     } catch (error) {
         console.error("Generate Exam error:", error);
         return NextResponse.json({ error: "Failed to generate exam" }, { status: 500 });
