@@ -24,6 +24,7 @@ interface DocumentContextType {
     activeDocumentId: string | null;
     setActiveDocumentId: (id: string | null) => void;
     activeDocument: DocumentType | null;
+    moveDocument: (id: string, folderId: string | null) => void;
 
     folders: FolderType[];
     addFolder: (name: string, parentId?: string) => void;
@@ -79,11 +80,15 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const moveDocument = (id: string, folderId: string | null) => {
+        setDocuments(prev => prev.map(d => d.id === id ? { ...d, folderId: folderId || undefined } : d));
+    };
+
     const activeDocument = documents.find(d => d.id === activeDocumentId) || null;
 
     return (
         <DocumentContext.Provider value={{
-            documents, addDocument, removeDocument, activeDocumentId, setActiveDocumentId, activeDocument,
+            documents, addDocument, removeDocument, activeDocumentId, setActiveDocumentId, activeDocument, moveDocument,
             folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId
         }}>
             {children}

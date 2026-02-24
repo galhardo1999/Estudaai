@@ -146,68 +146,7 @@ export function Sidebar({
                 </nav>
 
                 {/* Conditionally render documents and upload */}
-                {pathname === "/simulado" && (
-                    <>
-                        {!isCollapsed && (
-                            <div className="flex items-center justify-between px-2 mb-3 mt-6">
-                                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Documentos</h3>
-                            </div>
-                        )}
-
-                        {/* Upload Button */}
-                        <label className={cn(
-                            "mb-4 flex items-center justify-center gap-2 bg-card hover:bg-card-hover border border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl text-sm font-medium text-zinc-300 transition-colors cursor-pointer group",
-                            isCollapsed ? "w-10 h-10 mx-auto" : "w-full px-4 py-2"
-                        )}
-                            title={isCollapsed ? "Fazer Upload" : undefined}
-                        >
-                            <UploadCloud className="w-5 h-5 shrink-0 text-zinc-400 group-hover:text-primary transition-colors" />
-                            {!isCollapsed && <span>Fazer Upload</span>}
-                            <input
-                                type="file"
-                                className="hidden"
-                                accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png"
-                                onChange={handleFileChange}
-                            />
-                        </label>
-
-                        {/* Documents List */}
-                        <nav className="flex flex-col gap-1">
-                            {documents.map((doc) => (
-                                <div key={doc.id} className="relative group/doc flex items-center">
-                                    <button
-                                        onClick={() => onSelectDocument(doc.id)}
-                                        className={cn(
-                                            "flex items-center py-2 text-sm font-medium rounded-lg transition-colors text-left flex-1",
-                                            isCollapsed ? "justify-center px-0" : "gap-3 px-3",
-                                            activeDocumentId === doc.id
-                                                ? "bg-zinc-800/50 text-foreground"
-                                                : "text-muted-foreground hover:bg-zinc-800/30 hover:text-foreground"
-                                        )}
-                                        title={isCollapsed ? doc.name : undefined}
-                                    >
-                                        <FileText className="w-5 h-5 shrink-0" />
-                                        {!isCollapsed && <span className="truncate pr-6">{doc.name}</span>}
-                                    </button>
-                                    {!isCollapsed && (
-                                        <button
-                                            onClick={() => onRemoveDocument(doc.id)}
-                                            className="absolute right-2 p-1 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md opacity-0 group-hover/doc:opacity-100 transition-all"
-                                            title="Remover documento"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                            {documents.length === 0 && !isCollapsed && (
-                                <div className="text-center py-6 text-zinc-500 text-sm px-2">
-                                    Nenhum documento encontrado. Faça upload de um edital ou resumo.
-                                </div>
-                            )}
-                        </nav>
-                    </>
-                )}
+                {/* Removed Documents and Upload section */}
             </div>
 
             {/* User Area */}

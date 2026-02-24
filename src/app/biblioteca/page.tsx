@@ -7,9 +7,10 @@ import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function BibliotecaPage() {
-    const { documents, folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId, removeDocument } = useDocuments()
+    const { documents, folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId, removeDocument, moveDocument, addDocument } = useDocuments()
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false)
     const [newFolderName, setNewFolderName] = useState("")
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
 
     // Filter items based on current folder
     const currentFolders = folders.filter(f => f.parentId === (currentFolderId || undefined))
@@ -48,32 +49,32 @@ export default function BibliotecaPage() {
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0]
-            // We need to use the global upload handler. 
-            // In a real app we'd expose uploading logic from context or a custom hook. 
-            // Here we'll dispatch an event or rely on the Sidebar's upload handler if it's there.
-            // Since Sidebar upload handler is not exposed here easily, let's duplicate the fetch or use a hook.
-            // For now let's just create a dummy doc to simulate UI until we wire it up to the real API.
-
-            // Simulating real upload for UI purposes:
+            const files = Array.from(e.target.files)
             try {
-                const formData = new FormData()
-                formData.append("file", file)
+                const uploadPromises = files.map(async (file) => {
+                    const formData = new FormData()
+                    formData.append("file", file)
 
-                const res = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData,
+                    const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    })
+
+                    if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
+
+                    const data = await res.json()
+                    addDocument({
+                        id: data.document.id,
+                        name: data.document.name,
+                        url: data.document.url,
+                        createdAt: Date.now()
+                    })
                 })
 
-                if (!res.ok) throw new Error("Upload failed")
-
-                // The ClientLayout has its own handleUpload, but it's hard to trigger from here without context.
-                // We should really move upload logic to DocumentContext.
-                // For now, let's just alert the user to use the sidebar if we can't do it here easily.
-                alert("Upload pela biblioteca concluído. Em produção, isso atualizará o contexto de documentos.");
+                await Promise.all(uploadPromises)
             } catch (error) {
                 console.error(error)
-                alert("Falha no upload")
+                alert("Falha no upload de um ou mais arquivos")
             }
         }
     }
@@ -89,7 +90,15 @@ export default function BibliotecaPage() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                         <button
                             onClick={() => setCurrentFolderId(null)}
-                            className="hover:text-foreground transition-colors flex items-center gap-1"
+                            onDragOver={(e) => { e.preventDefault(); setDragOverFolderId('home'); }}
+                            onDragLeave={() => setDragOverFolderId(null)}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setDragOverFolderId(null);
+                                const docId = e.dataTransfer.getData("text/plain");
+                                if (docId) moveDocument(docId, null);
+                            }}
+                            className={`hover:text-foreground transition-colors flex items-center gap-1 ${dragOverFolderId === 'home' ? 'text-primary bg-primary/10 px-2 py-0.5 rounded' : ''}`}
                         >
                             <Home className="w-4 h-4" />
                             <span>Início</span>
@@ -100,7 +109,15 @@ export default function BibliotecaPage() {
                                 <ChevronRight className="w-4 h-4" />
                                 <button
                                     onClick={() => setCurrentFolderId(crumb.id)}
-                                    className={`transition-colors flex items-center gap-1 ${index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : 'hover:text-foreground'}`}
+                                    onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(crumb.id); }}
+                                    onDragLeave={() => setDragOverFolderId(null)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setDragOverFolderId(null);
+                                        const docId = e.dataTransfer.getData("text/plain");
+                                        if (docId) moveDocument(docId, crumb.id);
+                                    }}
+                                    className={`transition-colors flex items-center gap-1 ${index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : 'hover:text-foreground'} ${dragOverFolderId === crumb.id ? 'text-primary bg-primary/10 px-2 py-0.5 rounded' : ''}`}
                                 >
                                     <span>{crumb.name}</span>
                                 </button>
@@ -112,7 +129,7 @@ export default function BibliotecaPage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsCreateFolderModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-foreground rounded-lg transition-colors text-sm font-medium border border-border/50"
+                        className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors text-sm font-medium border border-border/50 shadow-sm"
                     >
                         <FolderPlus className="w-4 h-4" />
                         <span>Nova Pasta</span>
@@ -128,6 +145,7 @@ export default function BibliotecaPage() {
                     <input
                         id="biblioteca-file-upload"
                         type="file"
+                        multiple
                         className="hidden"
                         accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png"
                         onChange={handleFileChange}
@@ -144,7 +162,15 @@ export default function BibliotecaPage() {
                             <div
                                 key={folder.id}
                                 onClick={() => setCurrentFolderId(folder.id)}
-                                className="group flex items-center gap-3 p-4 bg-card hover:bg-zinc-800/50 border border-border/50 rounded-xl cursor-pointer transition-all"
+                                onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                                onDragLeave={() => setDragOverFolderId(null)}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    setDragOverFolderId(null);
+                                    const docId = e.dataTransfer.getData("text/plain");
+                                    if (docId) moveDocument(docId, folder.id);
+                                }}
+                                className={`group flex items-center gap-3 p-4 bg-card ${dragOverFolderId === folder.id ? 'bg-primary/10 border-primary ring-2 ring-primary/50' : 'hover:bg-zinc-800/50 border-border/50'} border rounded-xl cursor-pointer transition-all`}
                             >
                                 <div className="p-2 bg-primary/10 rounded-lg text-primary">
                                     <Folder className="w-6 h-6" fill="currentColor" fillOpacity={0.2} />
@@ -178,8 +204,8 @@ export default function BibliotecaPage() {
 
                 {currentDocuments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-card/50 border border-dashed border-border/50 rounded-2xl text-center">
-                        <div className="w-12 h-12 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
-                            <FileText className="w-6 h-6 text-zinc-500" />
+                        <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
+                            <FileText className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
                         </div>
                         <h3 className="text-lg font-medium text-foreground mb-1">Nenhum arquivo encontrado</h3>
                         <p className="text-sm text-muted-foreground max-w-sm mb-6">
@@ -199,7 +225,9 @@ export default function BibliotecaPage() {
                         {currentDocuments.map(doc => (
                             <div
                                 key={doc.id}
-                                className="group flex flex-col gap-3 p-4 bg-card border border-border/50 rounded-xl hover:border-border transition-colors relative"
+                                draggable
+                                onDragStart={(e) => e.dataTransfer.setData("text/plain", doc.id)}
+                                className="group flex flex-col gap-3 p-4 bg-card border border-border/50 rounded-xl hover:border-border transition-colors relative cursor-grab active:cursor-grabbing"
                             >
                                 <button
                                     onClick={(e) => {
@@ -241,7 +269,7 @@ export default function BibliotecaPage() {
                             <form onSubmit={handleCreateFolder}>
                                 <div className="space-y-4">
                                     <div>
-                                        <label htmlFor="folderName" className="block text-sm font-medium text-zinc-400 mb-1.5">
+                                        <label htmlFor="folderName" className="block text-sm font-medium text-foreground mb-1.5">
                                             Nome da Pasta
                                         </label>
                                         <input
@@ -250,7 +278,7 @@ export default function BibliotecaPage() {
                                             value={newFolderName}
                                             onChange={(e) => setNewFolderName(e.target.value)}
                                             placeholder="Ex: Concurso Banco do Brasil"
-                                            className="w-full px-4 py-2.5 bg-zinc-900 border border-border/50 rounded-xl text-foreground placeholder-zinc-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            className="w-full px-4 py-2.5 bg-zinc-100 bg-zinc-900 border border-border/50 rounded-xl text-foreground placeholder-zinc-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
                                             autoFocus
                                         />
                                     </div>
