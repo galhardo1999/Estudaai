@@ -72,7 +72,7 @@ export default function ResumoPage() {
                 const res = await fetch("/api/upload", { method: "POST", body: formData })
                 if (!res.ok) throw new Error("Upload failed")
                 const data = await res.json()
-                if (data.document) results.push({ name: data.document.name, url: data.document.url })
+                if (data.document) results.push({ name: data.document.name, url: data.document.geminiUri || data.document.url })
             }
             setUploadedDocs(prev => [...prev, ...results])
         } catch (err) {
@@ -124,7 +124,7 @@ export default function ResumoPage() {
 
     const handleGenerate = async () => {
         const files: AnalyzedFile[] = source === "library"
-            ? documents.filter(d => selectedDocIds.includes(d.id)).map(d => ({ name: d.name, url: d.url }))
+            ? documents.filter(d => selectedDocIds.includes(d.id)).map(d => ({ name: d.name, url: d.geminiUri || d.url }))
             : uploadedDocs
 
         setAnalyzedFiles(files)

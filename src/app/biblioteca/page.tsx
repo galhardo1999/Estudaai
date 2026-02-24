@@ -67,7 +67,8 @@ export default function BibliotecaPage() {
                         id: data.document.id,
                         name: data.document.name,
                         url: data.document.url,
-                        createdAt: Date.now()
+                        geminiUri: data.document.geminiUri,
+                        createdAt: data.document.createdAt || Date.now()
                     })
                 })
 

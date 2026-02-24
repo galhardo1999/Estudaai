@@ -47,7 +47,8 @@ export default function SimuladoPage() {
                         id: data.document.id,
                         name: data.document.name,
                         url: data.document.url,
-                        createdAt: Date.now()
+                        geminiUri: data.document.geminiUri,
+                        createdAt: data.document.createdAt || Date.now()
                     })
                 })
 
@@ -142,7 +143,7 @@ export default function SimuladoPage() {
         setTimeRemaining(timeLimit * 60)
         setIsSetupState(false)
         submit({
-            fileUris: documents.map(d => d.url),
+            fileUris: documents.filter(d => d.geminiUri).map(d => d.geminiUri),
             topic: topic || "Conhecimentos gerais do documento",
             questionCount
         })

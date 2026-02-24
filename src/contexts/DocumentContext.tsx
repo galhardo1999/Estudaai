@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 export type FolderType = {
     id: string;
@@ -13,6 +13,7 @@ export type DocumentType = {
     id: string;
     name: string;
     url: string;
+    geminiUri?: string | null;
     folderId?: string;
     createdAt: number;
 };
@@ -25,6 +26,7 @@ interface DocumentContextType {
     setActiveDocumentId: (id: string | null) => void;
     activeDocument: DocumentType | null;
     moveDocument: (id: string, folderId: string | null) => void;
+    isLoading: boolean;
 
     folders: FolderType[];
     addFolder: (name: string, parentId?: string) => void;
@@ -40,16 +42,44 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
     const [folders, setFolders] = useState<FolderType[]>([]);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch documents from database on mount
+    const fetchDocuments = useCallback(async () => {
+        try {
+            const res = await fetch("/api/documents");
+            if (res.ok) {
+                const data = await res.json();
+                setDocuments(data.documents || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch documents:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchDocuments();
+    }, [fetchDocuments]);
 
     const addDocument = (doc: DocumentType) => {
-        setDocuments(prev => [{ ...doc, folderId: currentFolderId || undefined, createdAt: Date.now() }, ...prev]);
+        setDocuments(prev => [{ ...doc, folderId: currentFolderId || undefined, createdAt: doc.createdAt || Date.now() }, ...prev]);
         setActiveDocumentId(doc.id);
     };
 
-    const removeDocument = (id: string) => {
+    const removeDocument = async (id: string) => {
+        // Remove from state immediately for instant UI feedback
         setDocuments(prev => prev.filter(d => d.id !== id));
         if (activeDocumentId === id) {
             setActiveDocumentId(null);
+        }
+
+        // Delete from server
+        try {
+            await fetch(`/api/documents/${id}`, { method: "DELETE" });
+        } catch (error) {
+            console.error("Failed to delete document:", error);
         }
     };
 
@@ -88,7 +118,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <DocumentContext.Provider value={{
-            documents, addDocument, removeDocument, activeDocumentId, setActiveDocumentId, activeDocument, moveDocument,
+            documents, addDocument, removeDocument, activeDocumentId, setActiveDocumentId, activeDocument, moveDocument, isLoading,
             folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId
         }}>
             {children}

@@ -67,7 +67,9 @@ model Documento {
   id        String   @id @default(uuid())
   titulo    String
   descricao String
-  url       String   // Link para o storage
+  url       String   // Link para o Supabase Storage
+  geminiUri String?  // URI do Google Gemini File Manager (para processamento IA)
+  criadoEm  DateTime @default(now())
   usuarioId String
   usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   exames    Exame[]
