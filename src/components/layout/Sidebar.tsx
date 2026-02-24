@@ -15,6 +15,7 @@ export function Sidebar({ className }: SidebarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const pathname = usePathname()
     const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico'))
+    const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo'))
 
     return (
         <aside className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>
@@ -113,18 +114,56 @@ export function Sidebar({ className }: SidebarProps) {
                         )}
                     </div>
 
-                    <Link
-                        href="/resumo"
-                        className={cn(
-                            "flex items-center py-2 text-sm font-medium rounded-lg transition-colors",
-                            isCollapsed ? "justify-center px-0" : "gap-3 px-3",
-                            pathname.startsWith("/resumo") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                    {/* Resumo de Estudos Group */}
+                    <div className="flex flex-col gap-1">
+                        <button
+                            onClick={() => {
+                                if (isCollapsed) {
+                                    setIsCollapsed(false)
+                                    setIsResumosExpanded(true)
+                                } else {
+                                    setIsResumosExpanded(!isResumosExpanded)
+                                }
+                            }}
+                            className={cn(
+                                "flex items-center justify-between py-2 text-sm font-medium rounded-lg transition-colors w-full",
+                                isCollapsed ? "justify-center px-0" : "px-3 gap-3",
+                                pathname.startsWith("/resumo") ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                            )}
+                            title={isCollapsed ? "Resumo de Estudos" : undefined}
+                        >
+                            <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
+                                <BookOpen className={cn("w-5 h-5 shrink-0", pathname.startsWith("/resumo") ? "text-primary" : "")} />
+                                {!isCollapsed && <span className="truncate">Resumo de Estudos</span>}
+                            </div>
+                            {!isCollapsed && (
+                                <ChevronRight className={cn("w-4 h-4 transition-transform", isResumosExpanded ? "rotate-90" : "")} />
+                            )}
+                        </button>
+
+                        {isResumosExpanded && !isCollapsed && (
+                            <div className="flex flex-col gap-1 pl-9 pr-3 mt-1">
+                                <Link
+                                    href="/resumo"
+                                    className={cn(
+                                        "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
+                                        pathname === "/resumo" ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <span className="truncate">Criar Novo Resumo</span>
+                                </Link>
+                                <Link
+                                    href="/resumos/historico"
+                                    className={cn(
+                                        "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
+                                        pathname.startsWith("/resumos") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <span className="truncate">Histórico de Resumos</span>
+                                </Link>
+                            </div>
                         )}
-                        title={isCollapsed ? "Resumo de Estudos" : undefined}
-                    >
-                        <BookOpen className={cn("w-5 h-5 shrink-0", pathname.startsWith("/resumo") ? "text-primary" : "")} />
-                        {!isCollapsed && <span className="truncate">Resumo de Estudos</span>}
-                    </Link>
+                    </div>
                 </nav>
 
                 {/* Conditionally render documents and upload */}

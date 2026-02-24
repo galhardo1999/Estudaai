@@ -5,7 +5,6 @@ import { experimental_useObject as useObject } from "@ai-sdk/react"
 import { z } from "zod"
 import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
 import { ResultDashboard } from "@/components/exam/ResultDashboard"
-import { useDocuments } from "@/contexts/DocumentContext"
 import { FileText, Trash2 } from "lucide-react"
 
 export default function SimuladoPage() {
@@ -17,7 +16,9 @@ export default function SimuladoPage() {
     const [wrongCount, setWrongCount] = useState(0)
     const [userAnswers, setUserAnswers] = useState<Record<string, string>>({})
 
-    const { addDocument, documents, removeDocument } = useDocuments()
+    // Local documents for this exam session only (not shared with library)
+    type LocalDoc = { id: string; name: string; url: string; geminiUri?: string | null }
+    const [localDocs, setLocalDocs] = useState<LocalDoc[]>([])
     const [isSetupState, setIsSetupState] = useState(true)
     const [generationProgress, setGenerationProgress] = useState(0)
     const [topic, setTopic] = useState("")
@@ -43,13 +44,12 @@ export default function SimuladoPage() {
                     if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
 
                     const data = await res.json()
-                    addDocument({
+                    setLocalDocs(prev => [...prev, {
                         id: data.document.id,
                         name: data.document.name,
                         url: data.document.url,
                         geminiUri: data.document.geminiUri,
-                        createdAt: data.document.createdAt || Date.now()
-                    })
+                    }])
                 })
 
                 await Promise.all(uploadPromises)
@@ -143,7 +143,7 @@ export default function SimuladoPage() {
         setTimeRemaining(timeLimit * 60)
         setIsSetupState(false)
         submit({
-            fileUris: documents.filter(d => d.geminiUri).map(d => d.geminiUri),
+            fileUris: localDocs.filter(d => d.geminiUri).map(d => d.geminiUri),
             topic: topic || "Conhecimentos gerais do documento",
             questionCount
         })
@@ -243,7 +243,7 @@ export default function SimuladoPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[200px] pr-2">
-                        {documents.map(doc => (
+                        {localDocs.map(doc => (
                             <div
                                 key={doc.id}
                                 className="p-3 rounded-xl border border-border/50 flex items-center justify-between transition-colors hover:bg-zinc-800/50"
@@ -255,7 +255,7 @@ export default function SimuladoPage() {
                                     <span className="text-sm font-medium truncate">{doc.name}</span>
                                 </div>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); removeDocument(doc.id); }}
+                                    onClick={(e) => { e.stopPropagation(); setLocalDocs(prev => prev.filter(d => d.id !== doc.id)); }}
                                     className="p-1.5 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md shrink-0 ml-2"
                                     title="Remover documento"
                                 >
@@ -321,12 +321,12 @@ export default function SimuladoPage() {
 
                     <div className="flex md:flex-row flex-col items-center justify-between mt-4 gap-4">
                         <div className="flex-1 w-full">
-                            {documents.length === 0 && <p className="text-sm text-amber-500/80">⚠ Faça upload de pelo menos um documento na lateral antes de gerar.</p>}
+                            {localDocs.length === 0 && <p className="text-sm text-amber-500/80">⚠ Faça upload de pelo menos um documento na lateral antes de gerar.</p>}
                         </div>
                         <button
                             onClick={handleGenerateExam}
-                            disabled={documents.length === 0}
-                            className={`font-semibold py-3 px-8 rounded-full transition-colors w-full md:w-auto ${documents.length === 0 ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white'}`}
+                            disabled={localDocs.length === 0}
+                            className={`font-semibold py-3 px-8 rounded-full transition-colors w-full md:w-auto ${localDocs.length === 0 ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white'}`}
                         >
                             Gerar Simulado
                         </button>
