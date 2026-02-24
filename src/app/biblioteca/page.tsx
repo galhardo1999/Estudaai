@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function BibliotecaPage() {
-    const { documents, folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId, removeDocument, moveDocument, addDocument } = useDocuments()
+    const { documents, folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId, removeDocument, moveDocument, addDocument, isLoading } = useDocuments()
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false)
     const [newFolderName, setNewFolderName] = useState("")
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
@@ -213,7 +213,23 @@ export default function BibliotecaPage() {
             <div>
                 <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Arquivos</h2>
 
-                {currentDocuments.length === 0 && uploadingFiles.length === 0 ? (
+                {isLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="flex flex-col gap-3 p-4 bg-card border border-border/30 rounded-xl animate-pulse">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2.5 bg-zinc-800 rounded-lg shrink-0">
+                                        <div className="w-6 h-6 rounded bg-zinc-700" />
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-0.5 space-y-2">
+                                        <div className="h-3 bg-zinc-700 rounded w-3/4" />
+                                        <div className="h-2.5 bg-zinc-800 rounded w-1/2" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : currentDocuments.length === 0 && uploadingFiles.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-card/50 border border-dashed border-border/50 rounded-2xl text-center">
                         <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
                             <FileText className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
@@ -224,12 +240,6 @@ export default function BibliotecaPage() {
                                 ? "Esta pasta está vazia. Faça o upload de um arquivo para começar."
                                 : "Não há arquivos soltos na raiz da biblioteca. Crie uma pasta ou faça um upload."}
                         </p>
-                        <button
-                            onClick={handleFileUploadClick}
-                            className="text-primary hover:text-primary/80 font-medium text-sm transition-colors"
-                        >
-                            Clique para fazer upload
-                        </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
