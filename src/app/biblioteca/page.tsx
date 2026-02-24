@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useDocuments } from "@/contexts/DocumentContext"
-import { FolderPlus, UploadCloud, Folder, FileText, Trash2, ChevronRight, Home } from "lucide-react"
+import { FolderPlus, UploadCloud, Folder, FileText, Trash2, ChevronRight, Home, Eye, X, Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -11,6 +11,9 @@ export default function BibliotecaPage() {
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false)
     const [newFolderName, setNewFolderName] = useState("")
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+    const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null)
+    const [previewLoading, setPreviewLoading] = useState(true)
+    const [uploadingFiles, setUploadingFiles] = useState<{ name: string; size: number }[]>([])
 
     // Filter items based on current folder
     const currentFolders = folders.filter(f => f.parentId === (currentFolderId || undefined))
@@ -50,6 +53,8 @@ export default function BibliotecaPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files)
+            const fileMetas = files.map(f => ({ name: f.name, size: f.size }))
+            setUploadingFiles(prev => [...prev, ...fileMetas])
             try {
                 const uploadPromises = files.map(async (file) => {
                     const formData = new FormData()
@@ -68,14 +73,19 @@ export default function BibliotecaPage() {
                         name: data.document.name,
                         url: data.document.url,
                         geminiUri: data.document.geminiUri,
+                        size: data.document.size,
                         createdAt: data.document.createdAt || Date.now()
                     })
+                    // Remove this file from uploading list
+                    setUploadingFiles(prev => prev.filter(f => f.name !== file.name))
                 })
 
                 await Promise.all(uploadPromises)
             } catch (error) {
                 console.error(error)
                 alert("Falha no upload de um ou mais arquivos")
+            } finally {
+                setUploadingFiles([])
             }
         }
     }
@@ -203,7 +213,7 @@ export default function BibliotecaPage() {
             <div>
                 <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Arquivos</h2>
 
-                {currentDocuments.length === 0 ? (
+                {currentDocuments.length === 0 && uploadingFiles.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-card/50 border border-dashed border-border/50 rounded-2xl text-center">
                         <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
                             <FileText className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
@@ -243,13 +253,47 @@ export default function BibliotecaPage() {
                                 </button>
 
                                 <div className="flex items-start gap-4">
-                                    <div className="p-2.5 bg-zinc-800 rounded-lg text-zinc-400 shrink-0">
-                                        <FileText className="w-6 h-6" />
+                                    <div
+                                        className="relative p-2.5 bg-zinc-800 rounded-lg text-zinc-400 shrink-0 cursor-pointer group/icon"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setPreviewLoading(true)
+                                            setPreviewDoc({ name: doc.name, url: doc.url })
+                                        }}
+                                    >
+                                        <FileText className="w-6 h-6 transition-opacity group-hover/icon:opacity-0" />
+                                        <Eye className="w-5 h-5 absolute inset-0 m-auto text-white opacity-0 group-hover/icon:opacity-100 transition-opacity" />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <h3 className="font-medium text-sm text-foreground truncate pr-6" title={doc.name}>{doc.name}</h3>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            {formatDistanceToNow(doc.createdAt || 0, { addSuffix: true, locale: ptBR })}
+                                            {doc.size
+                                                ? doc.size < 1024 * 1024
+                                                    ? `${(doc.size / 1024).toFixed(0)} KB`
+                                                    : `${(doc.size / (1024 * 1024)).toFixed(1)} MB`
+                                                : ''}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Uploading skeleton cards */}
+                        {uploadingFiles.map((file) => (
+                            <div
+                                key={`uploading-${file.name}`}
+                                className="flex flex-col gap-3 p-4 bg-card border border-primary/30 rounded-xl animate-pulse"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2.5 bg-primary/10 rounded-lg shrink-0">
+                                        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-0.5">
+                                        <h3 className="font-medium text-sm text-foreground truncate">{file.name}</h3>
+                                        <p className="text-xs text-primary mt-1">
+                                            Enviando · {file.size < 1024 * 1024
+                                                ? `${(file.size / 1024).toFixed(0)} KB`
+                                                : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
                                         </p>
                                     </div>
                                 </div>
@@ -279,7 +323,7 @@ export default function BibliotecaPage() {
                                             value={newFolderName}
                                             onChange={(e) => setNewFolderName(e.target.value)}
                                             placeholder="Ex: Concurso Banco do Brasil"
-                                            className="w-full px-4 py-2.5 bg-zinc-100 bg-zinc-900 border border-border/50 rounded-xl text-foreground placeholder-zinc-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                                            className="w-full px-4 py-2.5 bg-background border border-border/50 rounded-xl text-foreground placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
                                             autoFocus
                                         />
                                     </div>
@@ -302,6 +346,52 @@ export default function BibliotecaPage() {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* File Preview Modal */}
+            {previewDoc && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card w-full max-w-4xl h-[85vh] rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <FileText className="w-5 h-5 text-primary shrink-0" />
+                                <h2 className="text-lg font-semibold text-foreground truncate">{previewDoc.name}</h2>
+                            </div>
+                            <button
+                                onClick={() => setPreviewDoc(null)}
+                                className="p-2 text-zinc-400 hover:text-foreground hover:bg-zinc-800 rounded-lg transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden bg-zinc-950 relative">
+                            {/* Loading spinner */}
+                            {previewLoading && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
+                                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                                    <p className="text-sm text-muted-foreground">Carregando Documento...</p>
+                                </div>
+                            )}
+                            {previewDoc.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                <div className="w-full h-full flex items-center justify-center p-8">
+                                    <img
+                                        src={previewDoc.url}
+                                        alt={previewDoc.name}
+                                        className="max-w-full max-h-full object-contain rounded-lg"
+                                        onLoad={() => setPreviewLoading(false)}
+                                    />
+                                </div>
+                            ) : (
+                                <iframe
+                                    src={previewDoc.url}
+                                    className="w-full h-full border-0"
+                                    title={`Preview: ${previewDoc.name}`}
+                                    onLoad={() => setPreviewLoading(false)}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>

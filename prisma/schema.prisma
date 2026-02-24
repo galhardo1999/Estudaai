@@ -51,6 +51,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   documentos    Documento[]
+  pastas        Pasta[]
   exames        Exame[]
   resumos       Resumo[]
 }
@@ -63,15 +64,30 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model Pasta {
+  id         String   @id @default(uuid())
+  nome       String
+  criadoEm   DateTime @default(now())
+  usuarioId  String
+  usuario    User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     Pasta?   @relation("PastaSubpastas", fields: [parentId], references: [id], onDelete: Cascade)
+  subpastas  Pasta[]  @relation("PastaSubpastas")
+  documentos Documento[]
+}
+
 model Documento {
   id        String   @id @default(uuid())
   titulo    String
   descricao String
   url       String   // Link para o Supabase Storage
   geminiUri String?  // URI do Google Gemini File Manager (para processamento IA)
+  tamanho   Int?     // File size in bytes
   criadoEm  DateTime @default(now())
   usuarioId String
   usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pastaId   String?
+  pasta     Pasta?   @relation(fields: [pastaId], references: [id], onDelete: SetNull)
   exames    Exame[]
 }
 

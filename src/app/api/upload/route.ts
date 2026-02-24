@@ -32,7 +32,11 @@ export async function POST(request: Request) {
 
         // 2. Upload to Supabase Storage
         const timestamp = Date.now();
-        const storagePath = `${session.user.id}/${timestamp}_${file.name}`;
+        // Sanitize filename: remove special chars, replace spaces with underscores
+        const sanitizedName = file.name
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-zA-Z0-9._-]/g, "_"); // replace special chars with underscore
+        const storagePath = `${session.user.id}/${timestamp}_${sanitizedName}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from("documentos")
@@ -88,6 +92,7 @@ export async function POST(request: Request) {
                 descricao: mimeType,
                 url: supabaseUrl,
                 geminiUri: geminiUri || null,
+                tamanho: file.size,
                 usuarioId: session.user.id,
             },
         });
@@ -98,6 +103,7 @@ export async function POST(request: Request) {
                 name: documento.titulo,
                 url: documento.url,
                 geminiUri: documento.geminiUri,
+                size: documento.tamanho,
                 createdAt: documento.criadoEm.getTime(),
             },
         });

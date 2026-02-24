@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
 
+// DELETE: Remove a document from storage and database
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -16,10 +17,7 @@ export async function DELETE(
 
         const { id } = await params;
 
-        // Find the document and verify ownership
-        const documento = await prisma.documento.findUnique({
-            where: { id },
-        });
+        const documento = await prisma.documento.findUnique({ where: { id } });
 
         if (!documento) {
             return NextResponse.json({ error: "Document not found" }, { status: 404 });
@@ -30,7 +28,6 @@ export async function DELETE(
         }
 
         // Extract the storage path from the Supabase URL
-        // URL format: https://xxx.supabase.co/storage/v1/object/public/documentos/{path}
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
         const bucketPrefix = `${supabaseUrl}/storage/v1/object/public/documentos/`;
 
@@ -42,18 +39,51 @@ export async function DELETE(
 
             if (deleteStorageError) {
                 console.error("Supabase delete error:", deleteStorageError);
-                // Continue with DB deletion even if storage delete fails
             }
         }
 
-        // Delete from database
-        await prisma.documento.delete({
-            where: { id },
-        });
+        await prisma.documento.delete({ where: { id } });
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Delete document error:", error);
         return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+    }
+}
+
+// PATCH: Move a document to a folder (or to root by passing folderId: null)
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        const body = await request.json();
+        const { folderId } = body;
+
+        const documento = await prisma.documento.findUnique({ where: { id } });
+
+        if (!documento) {
+            return NextResponse.json({ error: "Document not found" }, { status: 404 });
+        }
+
+        if (documento.usuarioId !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        await prisma.documento.update({
+            where: { id },
+            data: { pastaId: folderId || null },
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Move document error:", error);
+        return NextResponse.json({ error: "Failed to move document" }, { status: 500 });
     }
 }

@@ -15,6 +15,7 @@ export type DocumentType = {
     url: string;
     geminiUri?: string | null;
     folderId?: string;
+    size?: number | null;
     createdAt: number;
 };
 
@@ -44,24 +45,33 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch documents from database on mount
-    const fetchDocuments = useCallback(async () => {
+    // Fetch documents and folders from database on mount
+    const fetchData = useCallback(async () => {
         try {
-            const res = await fetch("/api/documents");
-            if (res.ok) {
-                const data = await res.json();
-                setDocuments(data.documents || []);
+            const [docsRes, foldersRes] = await Promise.all([
+                fetch("/api/documents"),
+                fetch("/api/folders"),
+            ]);
+
+            if (docsRes.ok) {
+                const docsData = await docsRes.json();
+                setDocuments(docsData.documents || []);
+            }
+
+            if (foldersRes.ok) {
+                const foldersData = await foldersRes.json();
+                setFolders(foldersData.folders || []);
             }
         } catch (error) {
-            console.error("Failed to fetch documents:", error);
+            console.error("Failed to fetch data:", error);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchDocuments();
-    }, [fetchDocuments]);
+        fetchData();
+    }, [fetchData]);
 
     const addDocument = (doc: DocumentType) => {
         setDocuments(prev => [{ ...doc, folderId: currentFolderId || undefined, createdAt: doc.createdAt || Date.now() }, ...prev]);
@@ -69,13 +79,11 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     };
 
     const removeDocument = async (id: string) => {
-        // Remove from state immediately for instant UI feedback
         setDocuments(prev => prev.filter(d => d.id !== id));
         if (activeDocumentId === id) {
             setActiveDocumentId(null);
         }
 
-        // Delete from server
         try {
             await fetch(`/api/documents/${id}`, { method: "DELETE" });
         } catch (error) {
@@ -83,18 +91,32 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const addFolder = (name: string, parentId?: string) => {
-        const newFolder: FolderType = {
-            id: crypto.randomUUID(),
-            name,
-            parentId,
-            createdAt: Date.now(),
-        };
-        setFolders(prev => [...prev, newFolder]);
+    const addFolder = async (name: string, parentId?: string) => {
+        // Create on server first, then add to state with the real DB id
+        try {
+            const res = await fetch("/api/folders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, parentId: parentId || null }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const newFolder: FolderType = {
+                    id: data.folder.id,
+                    name: data.folder.name,
+                    parentId: data.folder.parentId || undefined,
+                    createdAt: data.folder.createdAt,
+                };
+                setFolders(prev => [...prev, newFolder]);
+            }
+        } catch (error) {
+            console.error("Failed to create folder:", error);
+        }
     };
 
-    const removeFolder = (id: string) => {
-        // Collect all subfolder IDs recursively
+    const removeFolder = async (id: string) => {
+        // Collect all subfolder IDs recursively (for local state cleanup)
         const getSubfolderIds = (folderId: string): string[] => {
             const children = folders.filter(f => f.parentId === folderId).map(f => f.id);
             return [...children, ...children.flatMap(getSubfolderIds)];
@@ -102,16 +124,37 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
 
         const idsToRemove = [id, ...getSubfolderIds(id)];
 
+        // Update local state immediately
         setFolders(prev => prev.filter(f => !idsToRemove.includes(f.id)));
-        setDocuments(prev => prev.filter(d => d.folderId ? !idsToRemove.includes(d.folderId) : true));
+        // Documents in deleted folders lose their folderId
+        setDocuments(prev => prev.map(d => d.folderId && idsToRemove.includes(d.folderId) ? { ...d, folderId: undefined } : d));
 
         if (currentFolderId && idsToRemove.includes(currentFolderId)) {
             setCurrentFolderId(null);
         }
+
+        // Delete on server (cascades subfolders via Prisma)
+        try {
+            await fetch(`/api/folders/${id}`, { method: "DELETE" });
+        } catch (error) {
+            console.error("Failed to delete folder:", error);
+        }
     };
 
-    const moveDocument = (id: string, folderId: string | null) => {
+    const moveDocument = async (id: string, folderId: string | null) => {
+        // Update local state immediately
         setDocuments(prev => prev.map(d => d.id === id ? { ...d, folderId: folderId || undefined } : d));
+
+        // Persist to server
+        try {
+            await fetch(`/api/documents/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ folderId }),
+            });
+        } catch (error) {
+            console.error("Failed to move document:", error);
+        }
     };
 
     const activeDocument = documents.find(d => d.id === activeDocumentId) || null;

@@ -20,6 +20,8 @@ export async function GET() {
             name: doc.titulo,
             url: doc.url,
             geminiUri: doc.geminiUri,
+            folderId: doc.pastaId || undefined,
+            size: doc.tamanho,
             createdAt: doc.criadoEm.getTime(),
         }));
 
