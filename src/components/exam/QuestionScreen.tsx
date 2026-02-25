@@ -21,8 +21,10 @@ interface QuestionScreenProps {
     totalQuestions: number
     question: Question
     onNext: () => void
+    onBack?: () => void
     onAnswer: (isCorrect: boolean, questionId: string, optionId: string) => void
     timeRemaining: number
+    initialSelectedOptionId?: string | null
 }
 
 export function QuestionScreen({
@@ -30,10 +32,12 @@ export function QuestionScreen({
     totalQuestions,
     question,
     onNext,
+    onBack,
     onAnswer,
     timeRemaining,
+    initialSelectedOptionId,
 }: QuestionScreenProps) {
-    const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
+    const [selectedOptionId, setSelectedOptionId] = useState<string | null>(initialSelectedOptionId || null)
 
     const progressPercentage = ((questionIndex) / totalQuestions) * 100
 
@@ -155,15 +159,27 @@ export function QuestionScreen({
             </main>
 
             {/* Bottom Action Bar */}
-            <div className="w-full flex justify-end px-6 md:px-12 py-6 max-w-5xl mx-auto">
-                {selectedOptionId && (
-                    <button
-                        onClick={onNext}
-                        className="bg-primary-hover hover:bg-primary text-black font-semibold tracking-wide py-2.5 px-8 rounded-full transition-all duration-200 active:scale-95 animate-in fade-in zoom-in-95"
-                    >
-                        Avançar
-                    </button>
-                )}
+            <div className="w-full flex justify-between px-6 md:px-12 py-6 max-w-5xl mx-auto">
+                <div>
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-semibold tracking-wide py-2.5 px-8 rounded-full transition-all duration-200 active:scale-95 animate-in fade-in zoom-in-95"
+                        >
+                            Voltar
+                        </button>
+                    )}
+                </div>
+                <div>
+                    {selectedOptionId && (
+                        <button
+                            onClick={onNext}
+                            className="bg-primary-hover hover:bg-primary text-black font-semibold tracking-wide py-2.5 px-8 rounded-full transition-all duration-200 active:scale-95 animate-in fade-in zoom-in-95"
+                        >
+                            Avançar
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     )

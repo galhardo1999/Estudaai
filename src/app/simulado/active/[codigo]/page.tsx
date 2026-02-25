@@ -96,6 +96,13 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         }
     }
 
+    const handleBack = () => {
+        if (!exam) return
+        if (exam.currentQuestionIndex > 0) {
+            examCtx.setCurrentQuestionIndex(codigo, prev => prev - 1)
+        }
+    }
+
     const handleBackToSetup = () => {
         examCtx.clearExam(codigo)
         router.push('/simulado')
@@ -179,7 +186,9 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
                     question={activeQuestionsList[exam.currentQuestionIndex]}
                     onAnswer={handleAnswer}
                     onNext={handleNext}
+                    onBack={exam.currentQuestionIndex > 0 ? handleBack : undefined}
                     timeRemaining={exam.timeRemaining}
+                    initialSelectedOptionId={exam.userAnswers[activeQuestionsList[exam.currentQuestionIndex].id]}
                 />
             ) : (
                 <div className="flex items-center justify-center min-h-screen">
