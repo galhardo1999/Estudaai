@@ -14,7 +14,9 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { fileUris, questionCount = 5, topic = "Qualquer assunto abordado no texto", difficulty = "medio" } = body;
+        const { documents, fileUris, questionCount = 5, topic = "Qualquer assunto abordado no texto", difficulty = "medio" } = body;
+
+        const docs = documents || (fileUris || []).map((uri: string) => ({ geminiUri: uri }));
 
         const difficultyInstructions: Record<string, string> = {
             facil: "Nível FÁCIL: Gere questões diretas e conceituais. Foque em definições, conceitos básicos e informações explícitas no texto. As alternativas incorretas devem ser claramente distintas da correta. Evite pegadinhas.",
@@ -24,8 +26,8 @@ export async function POST(request: Request) {
 
         const difficultyPrompt = difficultyInstructions[difficulty] || difficultyInstructions.medio;
 
-        if (!fileUris || !Array.isArray(fileUris) || fileUris.length === 0) {
-            return NextResponse.json({ error: "At least one file URI is required in the fileUris array" }, { status: 400 });
+        if (!docs || !Array.isArray(docs) || docs.length === 0) {
+            return NextResponse.json({ error: "At least one document is required" }, { status: 400 });
         }
 
         const apiKey = process.env.GEMINI_API_KEY;
@@ -36,6 +38,29 @@ export async function POST(request: Request) {
         const googleProvider = createGoogleGenerativeAI({
             apiKey: apiKey,
         });
+
+        const fileParts = await Promise.all(docs.map(async (doc: any) => {
+            if (doc.url) {
+                try {
+                    const res = await fetch(doc.url);
+                    if (res.ok) {
+                        const buffer = await res.arrayBuffer();
+                        return {
+                            type: "file" as const,
+                            data: buffer,
+                            mediaType: "application/pdf"
+                        };
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch doc url:", e);
+                }
+            }
+            return {
+                type: "file" as const,
+                data: new URL(doc.geminiUri),
+                mediaType: "application/pdf"
+            };
+        }));
 
         const result = streamObject({
             model: googleProvider("gemini-2.5-flash"),
@@ -63,13 +88,7 @@ export async function POST(request: Request) {
                     content: [
                         { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Dificuldade: ${difficulty.toUpperCase()}. Baseie as perguntas no material fornecido. Lembre-se: é OBRIGATÓRIO fornecer 5 alternativas (A, B, C, D, E) para cada questão, sendo apenas 1 correta.` },
                         { type: "text" as const, text: "Material de Estudo:" },
-                        ...fileUris.map(uri => {
-                            return {
-                                type: "file" as const,
-                                data: new URL(uri),
-                                mediaType: "application/pdf"
-                            }
-                        })
+                        ...fileParts
                     ]
                 }
             ],

@@ -325,7 +325,7 @@ export default function SimuladoSetupPage() {
                         onClick={() => {
                             const examId = Math.random().toString(36).substring(2, 6).toUpperCase()
                             const genParams = {
-                                fileUris: localDocs.filter(d => d.geminiUri).map(d => d.geminiUri),
+                                documents: localDocs.map(d => ({ url: d.url, geminiUri: d.geminiUri })),
                                 topic: topic || "Conhecimentos gerais do documento",
                                 questionCount,
                                 difficulty

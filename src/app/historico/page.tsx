@@ -66,11 +66,11 @@ export default async function HistoricoPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-foreground mb-1">
-                                            {exam.codigo ? `#${exam.codigo} - Simulado` : "Simulado Geral"}
+                                            {exam.codigo ? `#${exam.codigo} - Simulado Geral` : "Simulado Geral"}
                                         </h3>
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                                            <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {exam.documento?.titulo || "Documento Analisado"}</span>
                                             <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {formattedDate}</span>
+                                            <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {exam.documento?.titulo || "Documento Analisado"}</span>
                                         </div>
                                     </div>
                                 </div>

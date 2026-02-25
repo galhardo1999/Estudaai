@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { experimental_useObject as useObject } from "@ai-sdk/react"
+import { useSession } from "next-auth/react"
 import { z } from "zod"
 
 // Re-use Question type shape from exam components
@@ -62,7 +63,8 @@ const questionSchema = z.object({
 })
 
 type GenParams = {
-    fileUris: (string | null | undefined)[];
+    fileUris?: (string | null | undefined)[];
+    documents?: { url: string; geminiUri?: string | null }[];
     topic: string;
     questionCount: number;
     difficulty: string;
@@ -118,9 +120,22 @@ function saveToStorage(exams: Record<string, ExamState>) {
 }
 
 export function ExamProvider({ children }: { children: React.ReactNode }) {
+    const { data: session } = useSession();
+    const prevUserId = useRef<string | null | undefined>(session?.user?.id);
+
     const [exams, setExams] = useState<Record<string, ExamState>>(() => {
         return loadFromStorage();
     });
+
+    // Clear exams if the user changes (e.g., logout or login as different user)
+    useEffect(() => {
+        const currentUserId = session?.user?.id;
+        if (prevUserId.current !== undefined && currentUserId !== prevUserId.current) {
+            setExams({});
+            sessionStorage.removeItem(STORAGE_KEY);
+        }
+        prevUserId.current = currentUserId;
+    }, [session?.user?.id]);
 
     const [generatingExamId, setGeneratingExamId] = useState<string | null>(null);
 

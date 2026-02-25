@@ -275,7 +275,7 @@ export default async function DashboardPage() {
                                                     />
                                                 </div>
                                                 <span className={`text-sm font-semibold w-12 text-right ${getScoreColor(exam.pontuacao)}`}>
-                                                    {exam.pontuacao}%
+                                                    {(exam.pontuacao / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
                                                 </span>
                                             </div>
                                         )

@@ -13,9 +13,11 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { fileUris, summaryType = "resumo" } = body;
+        const { documents, fileUris, summaryType = "resumo" } = body;
 
-        if (!fileUris || !Array.isArray(fileUris) || fileUris.length === 0) {
+        const docs = documents || (fileUris || []).map((uri: string) => ({ geminiUri: uri }));
+
+        if (!docs || !Array.isArray(docs) || docs.length === 0) {
             return NextResponse.json({ error: "At least one file URI is required" }, { status: 400 });
         }
 
@@ -25,6 +27,29 @@ export async function POST(request: Request) {
         }
 
         const googleProvider = createGoogleGenerativeAI({ apiKey });
+
+        const fileParts = await Promise.all(docs.map(async (doc: any) => {
+            if (doc.url) {
+                try {
+                    const res = await fetch(doc.url);
+                    if (res.ok) {
+                        const buffer = await res.arrayBuffer();
+                        return {
+                            type: "file" as const,
+                            data: new Uint8Array(buffer),
+                            mediaType: "application/pdf"
+                        };
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch doc url:", e);
+                }
+            }
+            return {
+                type: "file" as const,
+                data: new URL(doc.geminiUri),
+                mediaType: "application/pdf",
+            };
+        }));
 
         const systemPrompts: Record<string, string> = {
             resumo: `Você é um professor especialista em criar resumos de estudo. Analise o material fornecido e gere um resumo estruturado em markdown com:
@@ -56,11 +81,7 @@ Crie entre 10 e 20 cartões cobrindo os conceitos mais importantes. Escreva em P
                             type: "text",
                             text: "Analise o seguinte material de estudo e gere o conteúdo solicitado:"
                         },
-                        ...fileUris.map((uri: string) => ({
-                            type: "file" as const,
-                            data: new URL(uri),
-                            mediaType: "application/pdf",
-                        })),
+                        ...fileParts
                     ],
                 },
             ],
