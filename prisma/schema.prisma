@@ -93,6 +93,7 @@ model Documento {
 
 model Exame {
   id            String   @id @default(uuid())
+  codigo        String?  // Short human-readable code (e.g. A3F2)
   pontuacao     Int
   totalQuestoes Int
   duracao       Int      // Tempo gasto em segundos

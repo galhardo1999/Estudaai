@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Menu, LogOut } from "lucide-react"
 import { useDocuments } from "@/contexts/DocumentContext"
 import { ThemeToggle } from "@/components/theme/ThemeToggle"
+import { ActiveExamIndicator } from "@/components/exam/ActiveExamIndicator"
 import { signOut } from "next-auth/react"
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -65,8 +66,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
 
-                {/* Theme Toggle - Floating Bottom Right */}
-                <div className="fixed bottom-6 right-6 z-50">
+                {/* Floating Bottom Right — Exam indicator + Theme Toggle */}
+                <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+                    <ActiveExamIndicator />
                     <div className="bg-background/80 backdrop-blur-md rounded-full shadow-lg border border-border/50 p-1">
                         <ThemeToggle />
                     </div>

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 
 import { DocumentProvider } from "@/contexts/DocumentContext";
+import { ExamProvider } from "@/contexts/ExamContext";
 
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
@@ -42,9 +43,11 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <DocumentProvider>
-              <MainLayoutWrapper>{children}</MainLayoutWrapper>
-            </DocumentProvider>
+            <ExamProvider>
+              <DocumentProvider>
+                <MainLayoutWrapper>{children}</MainLayoutWrapper>
+              </DocumentProvider>
+            </ExamProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>

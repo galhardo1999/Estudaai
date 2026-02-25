@@ -1,31 +1,81 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { experimental_useObject as useObject } from "@ai-sdk/react"
-import { z } from "zod"
-import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
-import { ResultDashboard } from "@/components/exam/ResultDashboard"
-import { FileText, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { FileText, Trash2, FolderOpen, ChevronRight, ChevronDown, Upload, Check } from "lucide-react"
+import { useExam } from "@/contexts/ExamContext"
+import { useRouter } from "next/navigation"
 
-export default function SimuladoPage() {
-    const [questions] = useState<Question[]>([])
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-    const [isFinished, setIsFinished] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
-    const [correctCount, setCorrectCount] = useState(0)
-    const [wrongCount, setWrongCount] = useState(0)
-    const [userAnswers, setUserAnswers] = useState<Record<string, string>>({})
+type LibDoc = { id: string; name: string; url: string; geminiUri?: string | null; folderId?: string }
+type LibFolder = { id: string; name: string; parentId?: string }
 
-    // Local documents for this exam session only (not shared with library)
+export default function SimuladoSetupPage() {
+    const exam = useExam()
+    const router = useRouter()
+
+    // Setup form state
     type LocalDoc = { id: string; name: string; url: string; geminiUri?: string | null }
     const [localDocs, setLocalDocs] = useState<LocalDoc[]>([])
-    const [isSetupState, setIsSetupState] = useState(true)
-    const [generationProgress, setGenerationProgress] = useState(0)
     const [topic, setTopic] = useState("")
     const [questionCount, setQuestionCount] = useState(30)
+    const [difficulty, setDifficulty] = useState<"facil" | "medio" | "dificil">("medio")
     const [timeLimit, setTimeLimit] = useState(60)
-    const [timeRemaining, setTimeRemaining] = useState(60 * 60) // in seconds
     const [isUploading, setIsUploading] = useState(false)
+
+    // Library state
+    const [libraryDocs, setLibraryDocs] = useState<LibDoc[]>([])
+    const [libraryFolders, setLibraryFolders] = useState<LibFolder[]>([])
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
+    const [loadingLibrary, setLoadingLibrary] = useState(true)
+
+    // Fetch library on mount
+    useEffect(() => {
+        const fetchLibrary = async () => {
+            try {
+                const [docsRes, foldersRes] = await Promise.all([
+                    fetch("/api/documents"),
+                    fetch("/api/folders")
+                ])
+                const docsData = await docsRes.json()
+                const foldersData = await foldersRes.json()
+                setLibraryDocs(docsData.documents || [])
+                setLibraryFolders(foldersData.folders || [])
+            } catch (error) {
+                console.error("Failed to fetch library:", error)
+            } finally {
+                setLoadingLibrary(false)
+            }
+        }
+        fetchLibrary()
+    }, [])
+
+    const isDocSelected = (docId: string) => localDocs.some(d => d.id === docId)
+
+    const toggleDocSelection = (doc: LibDoc) => {
+        if (isDocSelected(doc.id)) {
+            setLocalDocs(prev => prev.filter(d => d.id !== doc.id))
+        } else {
+            setLocalDocs(prev => [...prev, {
+                id: doc.id,
+                name: doc.name,
+                url: doc.url,
+                geminiUri: doc.geminiUri,
+            }])
+        }
+    }
+
+    const toggleFolder = (folderId: string) => {
+        setExpandedFolders(prev => {
+            const next = new Set(prev)
+            if (next.has(folderId)) next.delete(folderId)
+            else next.add(folderId)
+            return next
+        })
+    }
+
+    const getFolderDocs = (folderId: string) => libraryDocs.filter(d => d.folderId === folderId)
+    const getRootDocs = () => libraryDocs.filter(d => !d.folderId)
+    const getRootFolders = () => libraryFolders.filter(f => !f.parentId)
+    const getSubFolders = (parentId: string) => libraryFolders.filter(f => f.parentId === parentId)
 
     const handleUploadDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -44,12 +94,16 @@ export default function SimuladoPage() {
                     if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
 
                     const data = await res.json()
-                    setLocalDocs(prev => [...prev, {
+                    const newDoc = {
                         id: data.document.id,
                         name: data.document.name,
                         url: data.document.url,
                         geminiUri: data.document.geminiUri,
-                    }])
+                    }
+                    setLocalDocs(prev => [...prev, newDoc])
+
+                    // Also add to library so it appears immediately
+                    setLibraryDocs(prev => [{ ...newDoc, folderId: undefined }, ...prev])
                 })
 
                 await Promise.all(uploadPromises)
@@ -63,360 +117,232 @@ export default function SimuladoPage() {
         }
     }
 
-    // AI Stream Hook
-    const { object, submit, isLoading } = useObject({
-        api: "/api/generate-exam",
-        schema: z.object({
-            questions: z.array(
-                z.object({
-                    id: z.string(),
-                    text: z.string(),
-                    options: z.array(
-                        z.object({
-                            id: z.string(),
-                            letter: z.string(),
-                            text: z.string(),
-                            isCorrect: z.boolean(),
-                            explanation: z.string().optional(),
-                        })
-                    ),
-                })
-            ),
-        }),
-        onFinish() {
-            // Streaming finished, nothing to reset – the user continues naturally
-        },
-        onError(err: Error) {
-            console.error(err)
-            alert("Erro ao gerar simulado com Inteligência Artificial.")
-            setIsSetupState(true)
-        }
-    })
+    const renderFolder = (folder: LibFolder, depth: number = 0) => {
+        const isExpanded = expandedFolders.has(folder.id)
+        const docs = getFolderDocs(folder.id)
+        const subFolders = getSubFolders(folder.id)
+        const hasContent = docs.length > 0 || subFolders.length > 0
 
-    const questionsStream = object?.questions || [];
-    const isGenerating = isLoading; // Rename internally for easier conditional logic
-    // We consider the generation "usable" as soon as it gives us the first complete question
-    const hasStartedReceiving = questionsStream.length > 0;
-
-    // We keep this to animate the spinner if the very first chunk takes a while
-    useEffect(() => {
-        if (!isLoading || hasStartedReceiving) return;
-
-        const timer = setInterval(() => {
-            setGenerationProgress(prev => {
-                if (prev >= 99) return 99;
-                return prev + 1; // Faster visual progression
-            });
-        }, 100);
-
-        return () => clearInterval(timer);
-    }, [isLoading, hasStartedReceiving]);
-
-    // Keep a ref so the timer interval always has fresh state without stale closures
-    const timeoutCallbackRef = useRef<() => void>(() => { });
-    useEffect(() => {
-        timeoutCallbackRef.current = () => {
-            saveAndFinishExam(activeQuestionsList, userAnswers, correctCount);
-        };
-    });
-
-    // Countdown timer - starts as soon as the first question appears
-    useEffect(() => {
-        if (isSetupState || isFinished || !hasStartedReceiving) return;
-
-        const timer = setInterval(() => {
-            setTimeRemaining(prev => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    timeoutCallbackRef.current();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [isSetupState, isFinished, hasStartedReceiving]);
-
-    const handleGenerateExam = () => {
-        setGenerationProgress(0)
-        setTimeRemaining(timeLimit * 60)
-        setIsSetupState(false)
-        submit({
-            fileUris: localDocs.filter(d => d.geminiUri).map(d => d.geminiUri),
-            topic: topic || "Conhecimentos gerais do documento",
-            questionCount
-        })
-    }
-
-    const handleAnswer = (isCorrect: boolean, questionId: string, optionId: string) => {
-        setUserAnswers(prev => ({ ...prev, [questionId]: optionId }))
-        if (isCorrect) {
-            setCorrectCount(prev => prev + 1)
-        } else {
-            setWrongCount(prev => prev + 1)
-        }
-    }
-
-    // Only include questions that are fully streamed (have options array)
-    const rawList = questions.length > 0 ? questions : (questionsStream as Question[]);
-    const activeQuestionsList = rawList.filter(q => q && Array.isArray(q.options) && q.options.length > 0);
-
-    const saveAndFinishExam = async (questionsList: Question[], answers: Record<string, string>, correct: number) => {
-        setIsSaving(true)
-        try {
-            const totalSeconds = timeLimit * 60 - timeRemaining;
-
-            await fetch("/api/save-exam", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    pontuacao: correct,
-                    totalQuestoes: questionsList.length,
-                    duracao: totalSeconds,
-                    questoes: questionsList,
-                    respostas: answers
-                })
-            });
-        } catch (error) {
-            console.error("Failed to save exam to history:", error);
-        } finally {
-            setIsFinished(true)
-            setIsSaving(false)
-        }
-    }
-
-    const handleNext = async () => {
-        if (currentQuestionIndex < activeQuestionsList.length - 1) {
-            setCurrentQuestionIndex(prev => prev + 1)
-        } else {
-            // Se chegou no final dos chunks E ainda tá carregando, bloqueia avanço
-            if (isGenerating && currentQuestionIndex === activeQuestionsList.length - 1) return;
-
-            await saveAndFinishExam(activeQuestionsList, userAnswers, correctCount)
-        }
-    }
-
-    const handleRestart = () => {
-        setCurrentQuestionIndex(0)
-        setIsFinished(false)
-        setCorrectCount(0)
-        setWrongCount(0)
-        setUserAnswers({})
-        setTimeRemaining(timeLimit * 60)
-        setIsSetupState(false)
-    }
-
-    const handleBackToSetup = () => {
-        setIsSetupState(true)
-        setTopic("")
-    }
-
-    // Ignoradas = total - (corretas + erradas), default to current generated length
-    const skippedCount = activeQuestionsList.length - (correctCount + wrongCount)
-
-    if (isSetupState) {
         return (
-            <div className="flex-1 flex flex-col md:flex-row items-stretch justify-start gap-6 p-6 md:p-12 min-h-screen max-w-6xl mx-auto w-full">
-                {/* Left Card: Material de Estudo */}
-                <div className="w-full md:w-1/3 bg-card border border-border/50 rounded-2xl p-6 flex flex-col gap-6">
+            <div key={folder.id}>
+                <button
+                    onClick={() => toggleFolder(folder.id)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                    style={{ paddingLeft: `${8 + depth * 16}px` }}
+                >
+                    {hasContent ? (
+                        isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                        <span className="w-3.5" />
+                    )}
+                    <FolderOpen className="w-4 h-4 text-primary/70 shrink-0" />
+                    <span className="truncate text-foreground/80">{folder.name}</span>
+                    {docs.length > 0 && <span className="text-xs text-muted-foreground ml-auto shrink-0">{docs.length}</span>}
+                </button>
+                {isExpanded && (
                     <div>
-                        <h2 className="text-xl font-semibold mb-2">Material de Estudo</h2>
-                        <p className="text-zinc-400 text-sm">Gerencie os arquivos que servirão de base para seus simulados.</p>
+                        {subFolders.map(sf => renderFolder(sf, depth + 1))}
+                        {docs.map(doc => renderDocItem(doc, depth + 1))}
                     </div>
-
-                    <div>
-                        <label className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-16 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
-                            {isUploading ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    <span>Enviando...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="text-center">Clique para fazer upload ou<br />arraste os arquivos</span>
-                                    <input type="file" multiple className="hidden" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png" onChange={handleUploadDocument} disabled={isUploading} />
-                                </>
-                            )}
-                        </label>
-                        <p className="text-xs text-muted-foreground text-center">Formatos aceitos: PDF, TXT, DOC, DOCX</p>
-                    </div>
-
-                    <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[200px] pr-2">
-                        {localDocs.map(doc => (
-                            <div
-                                key={doc.id}
-                                className="p-3 rounded-xl border border-border/50 flex items-center justify-between transition-colors hover:bg-zinc-800/50"
-                            >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="p-2 rounded-lg shrink-0 bg-zinc-800 text-zinc-400">
-                                        <FileText className="w-4 h-4" />
-                                    </div>
-                                    <span className="text-sm font-medium truncate">{doc.name}</span>
-                                </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setLocalDocs(prev => prev.filter(d => d.id !== doc.id)); }}
-                                    className="p-1.5 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md shrink-0 ml-2"
-                                    title="Remover documento"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Right Card: Preparar Simulado */}
-                <div className="w-full md:w-2/3 bg-card border border-border/50 rounded-2xl p-8 flex flex-col gap-6">
-                    <div>
-                        <h1 className="text-2xl font-semibold mb-2">Preparar Simulado</h1>
-                        <p className="text-zinc-400 text-sm">Configure os assuntos e regras do seu próximo simulado.</p>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Sobre qual assunto é o simulado?</label>
-                        <textarea
-                            value={topic}
-                            onChange={(e) => setTopic(e.target.value)}
-                            placeholder="Ex: Foque apenas em Atos Administrativos e Poderes da Administração..."
-                            className="w-full bg-secondary/30 border border-input rounded-xl p-4 min-h-[120px] text-sm focus:outline-none focus:border-primary resize-none placeholder:text-muted-foreground text-foreground"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Quantas questões?</label>
-                        <div className="flex flex-wrap gap-3">
-                            {[30, 40, 45, 60, 90, 120].map((count) => (
-                                <button
-                                    key={count}
-                                    onClick={() => setQuestionCount(count)}
-                                    className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${questionCount === count
-                                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                                        : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
-                                        }`}
-                                >
-                                    {count}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Quanto tempo limite?</label>
-                        <div className="flex flex-wrap gap-3">
-                            {[15, 30, 45, 60, 90, 120].map((time) => (
-                                <button
-                                    key={time}
-                                    onClick={() => setTimeLimit(time)}
-                                    className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${timeLimit === time
-                                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                                        : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
-                                        }`}
-                                >
-                                    {time} min
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex md:flex-row flex-col items-center justify-between mt-4 gap-4">
-                        <div className="flex-1 w-full">
-                            {localDocs.length === 0 && <p className="text-sm text-amber-500/80">⚠ Faça upload de pelo menos um documento na lateral antes de gerar.</p>}
-                        </div>
-                        <button
-                            onClick={handleGenerateExam}
-                            disabled={localDocs.length === 0}
-                            className={`font-semibold py-3 px-8 rounded-full transition-colors w-full md:w-auto ${localDocs.length === 0 ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white'}`}
-                        >
-                            Gerar Simulado
-                        </button>
-                    </div>
-                </div>
+                )}
             </div>
         )
     }
 
-    // Only show full-page loader if we haven't received ANY chunks yet
-    if (isGenerating && !hasStartedReceiving) {
-        const radius = 45;
-        const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (generationProgress / 100) * circumference;
-
+    const renderDocItem = (doc: LibDoc, depth: number = 0) => {
+        const selected = isDocSelected(doc.id)
         return (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-screen">
-                <div className="relative w-32 h-32 mb-8">
-                    {/* Background Circle */}
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                        <circle
-                            cx="50" cy="50" r={radius}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="6"
-                            className="text-zinc-800"
-                        />
-                        {/* Progress Circle */}
-                        <circle
-                            cx="50" cy="50" r={radius}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="6"
-                            className="text-primary transition-all duration-1000 ease-out"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={offset}
-                        />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold text-foreground">
-                            {Math.round(generationProgress)}%
-                        </span>
-                    </div>
+            <button
+                key={doc.id}
+                onClick={() => toggleDocSelection(doc)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-lg transition-colors text-left ${selected ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/50 text-foreground/80'}`}
+                style={{ paddingLeft: `${8 + depth * 16 + 20}px` }}
+            >
+                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-primary border-primary' : 'border-border'}`}>
+                    {selected && <Check className="w-3 h-3 text-white" />}
                 </div>
-            </div>
-        )
-    }
-
-    if (isFinished) {
-        return (
-            <ResultDashboard
-                totalQuestions={activeQuestionsList.length}
-                correctCount={correctCount}
-                wrongCount={wrongCount}
-                skippedCount={skippedCount}
-                onReview={handleRestart}
-                onMoreQuestions={handleBackToSetup}
-            />
-        )
-    }
-
-    if (isSaving) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-screen">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-xl font-medium animate-pulse">Salvando seu resultado no histórico...</h2>
-            </div>
+                <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{doc.name}</span>
+            </button>
         )
     }
 
     return (
-        <div className="relative min-h-screen">
-
-
-
-            {activeQuestionsList[currentQuestionIndex] ? (
-                <QuestionScreen
-                    key={currentQuestionIndex}
-                    questionIndex={currentQuestionIndex}
-                    totalQuestions={questionCount} // Show the planned total
-                    question={activeQuestionsList[currentQuestionIndex] as Question}
-                    onNext={handleNext}
-                    onAnswer={handleAnswer}
-                    timeRemaining={timeRemaining}
-                />
-            ) : (
-                <div className="flex items-center justify-center min-h-screen">
-                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex-1 flex flex-col md:flex-row items-stretch justify-start gap-6 p-6 md:p-12 min-h-screen max-w-6xl mx-auto w-full">
+            {/* Left Card: Material de Estudo */}
+            <div className="w-full md:w-1/3 bg-card border border-border/50 rounded-2xl p-6 flex flex-col gap-4">
+                <div>
+                    <h2 className="text-xl font-semibold mb-1">Material de Estudo</h2>
+                    <p className="text-zinc-400 text-sm">Selecione documentos da biblioteca ou faça upload de novos arquivos.</p>
                 </div>
-            )}
+
+                {/* Upload area */}
+                <div>
+                    <label className={`flex items-center justify-center gap-3 w-full px-4 py-4 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
+                        {isUploading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span>Enviando...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                                <span className="text-xs">Clique para upload ou arraste arquivos</span>
+                                <input type="file" multiple className="hidden" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png" onChange={handleUploadDocument} disabled={isUploading} />
+                            </>
+                        )}
+                    </label>
+                </div>
+
+                {/* Library browser — fills available space */}
+                <div className="flex-1 overflow-y-auto border border-border/30 rounded-xl p-2 bg-secondary/10">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Biblioteca</p>
+                    {loadingLibrary ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : libraryDocs.length === 0 && libraryFolders.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-6">Nenhum documento na biblioteca.</p>
+                    ) : (
+                        <div className="flex flex-col gap-0.5">
+                            {getRootFolders().map(f => renderFolder(f))}
+                            {getRootDocs().map(doc => renderDocItem(doc))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Selected documents at bottom */}
+                {localDocs.length > 0 && (
+                    <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Selecionados ({localDocs.length})</p>
+                        <div className="flex flex-col gap-1.5 max-h-[150px] overflow-y-auto">
+                            {localDocs.map(doc => (
+                                <div
+                                    key={doc.id}
+                                    className="px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        <span className="text-sm font-medium truncate">{doc.name}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setLocalDocs(prev => prev.filter(d => d.id !== doc.id))}
+                                        className="p-1 text-zinc-500 hover:text-danger hover:bg-danger/10 rounded-md shrink-0 ml-2"
+                                        title="Remover documento"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+
+            {/* Right Card: Preparar Simulado */}
+            <div className="w-full md:w-2/3 bg-card border border-border/50 rounded-2xl p-8 flex flex-col gap-6">
+                <div>
+                    <h1 className="text-2xl font-semibold mb-2">Preparar Simulado</h1>
+                    <p className="text-zinc-400 text-sm">Configure os assuntos e regras do seu próximo simulado.</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-foreground">Sobre qual assunto é o simulado?</label>
+                    <textarea
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="Ex: Foque apenas em Atos Administrativos e Poderes da Administração..."
+                        className="w-full bg-secondary/30 border border-input rounded-xl p-4 min-h-[120px] text-sm focus:outline-none focus:border-primary resize-none placeholder:text-muted-foreground text-foreground"
+                    />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-foreground">Quantas questões?</label>
+                    <div className="flex flex-wrap gap-3">
+                        {[5, 10, 30, 40, 45, 60, 90, 120].map((count) => (
+                            <button
+                                key={count}
+                                onClick={() => setQuestionCount(count)}
+                                className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${questionCount === count
+                                    ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                                    : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
+                                    }`}
+                            >
+                                {count}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-foreground">Nível de dificuldade</label>
+                    <div className="flex flex-wrap gap-3">
+                        {([
+                            { value: "facil" as const, label: "Fácil", desc: "Questões diretas e conceituais" },
+                            { value: "medio" as const, label: "Médio", desc: "Questões que exigem interpretação" },
+                            { value: "dificil" as const, label: "Difícil", desc: "Questões com pegadinhas e análise profunda" },
+                        ]).map(({ value, label, desc }) => (
+                            <button
+                                key={value}
+                                onClick={() => setDifficulty(value)}
+                                className={`flex-1 min-w-[120px] px-5 py-3 rounded-xl text-sm font-medium border transition-colors text-left ${difficulty === value
+                                    ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                                    : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
+                                    }`}
+                            >
+                                <span className="block font-semibold">{label}</span>
+                                <span className={`block text-xs mt-0.5 ${difficulty === value ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{desc}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-foreground">Quanto tempo limite?</label>
+                    <div className="flex flex-wrap gap-3">
+                        {[15, 30, 45, 60, 90, 120].map((time) => (
+                            <button
+                                key={time}
+                                onClick={() => setTimeLimit(time)}
+                                className={`px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${timeLimit === time
+                                    ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                                    : "bg-secondary/30 border-input hover:border-foreground/50 text-foreground"
+                                    }`}
+                            >
+                                {time} min
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex md:flex-row flex-col items-center justify-between mt-4 gap-4">
+                    <div className="flex-1 w-full">
+                        {localDocs.length === 0 && <p className="text-sm text-amber-500/80">⚠ Selecione pelo menos um documento antes de gerar.</p>}
+                        {exam.isGenerating && <p className="text-sm text-amber-500/80">⚠ Aguarde a geração do simulado atual terminar antes de criar outro.</p>}
+                    </div>
+                    <button
+                        onClick={() => {
+                            const examId = Math.random().toString(36).substring(2, 6).toUpperCase()
+                            const genParams = {
+                                fileUris: localDocs.filter(d => d.geminiUri).map(d => d.geminiUri),
+                                topic: topic || "Conhecimentos gerais do documento",
+                                questionCount,
+                                difficulty
+                            }
+                            exam.startExam(timeLimit, questionCount, examId)
+                            setTimeout(() => {
+                                exam.generateExam(examId, genParams)
+                            }, 100)
+                            router.push(`/simulado/active/${examId}`)
+                        }}
+                        disabled={localDocs.length === 0 || exam.isGenerating}
+                        className={`font-semibold py-3 px-8 rounded-full transition-colors w-full md:w-auto ${(localDocs.length === 0 || exam.isGenerating) ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-hover text-white'}`}
+                    >
+                        {exam.isGenerating ? 'Gerando...' : 'Gerar Simulado'}
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

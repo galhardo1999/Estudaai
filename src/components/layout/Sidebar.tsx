@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight } from "lucide-react"
+import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
+import { useExam } from "@/contexts/ExamContext"
 
 interface SidebarProps {
     className?: string
@@ -16,6 +17,13 @@ export function Sidebar({ className }: SidebarProps) {
     const pathname = usePathname()
     const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico'))
     const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo'))
+    const exam = useExam()
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60)
+        const s = seconds % 60
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    }
 
     return (
         <aside className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>
@@ -165,6 +173,55 @@ export function Sidebar({ className }: SidebarProps) {
                         )}
                     </div>
                 </nav>
+
+                {/* Active Exams */}
+                {exam.activeExams.length > 0 && !isCollapsed && (
+                    <div className="mt-2 mb-4">
+                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-2">
+                            Simulados Ativos ({exam.activeExams.length})
+                        </h3>
+                        <div className="flex flex-col gap-2">
+                            {exam.activeExams.map((e) => (
+                                <Link
+                                    key={e.examId}
+                                    href={`/simulado/active/${e.examId}`}
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors group"
+                                >
+                                    <div className="relative">
+                                        <ClipboardList className="w-5 h-5 text-primary" />
+                                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-success rounded-full animate-pulse" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                            #{e.examId} - Simulado
+                                        </p>
+                                        <p className="text-xs text-muted-foreground tabular-nums">
+                                            {e.questions.length === 0 ? '⏳ Gerando...' : `⏱ ${formatTime(e.timeRemaining)}`}
+                                        </p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {exam.activeExams.length > 0 && isCollapsed && (
+                    <div className="flex flex-col items-center gap-2 mb-4">
+                        {exam.activeExams.map((e) => (
+                            <Link
+                                key={e.examId}
+                                href={`/simulado/active/${e.examId}`}
+                                className="flex justify-center"
+                                title={`Simulado #${e.examId} — ${e.questions.length === 0 ? 'Gerando...' : formatTime(e.timeRemaining)}`}
+                            >
+                                <div className="relative">
+                                    <ClipboardList className="w-5 h-5 text-primary" />
+                                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-success rounded-full animate-pulse" />
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
 
                 {/* Conditionally render documents and upload */}
                 {/* Removed Documents and Upload section */}
