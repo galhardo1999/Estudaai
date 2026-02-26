@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { streamObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { z } from "zod";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase";
+import { writeFile, unlink } from "fs/promises";
+import path from "path";
+import os from "os";
+import { randomUUID } from "crypto";
 
 export async function POST(request: Request) {
     try {
@@ -52,57 +57,81 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
         }
 
-        const googleProvider = createGoogleGenerativeAI({
-            apiKey: apiKey,
-        });
+        const googleProvider = createGoogleGenerativeAI({ apiKey });
+        const fileManager = new GoogleAIFileManager(apiKey);
+
+        /** Download a doc buffer from Supabase given its stored URL/path */
+        async function downloadFromSupabase(doc: any): Promise<Buffer | null> {
+            if (!doc.url) return null;
+            try {
+                let storagePath = doc.url;
+                if (doc.url.startsWith("http")) {
+                    const match = doc.url.match(/\/documentos\/(.+)$/);
+                    storagePath = match ? match[1] : null;
+                    if (!storagePath) return null;
+                }
+                const { data, error } = await supabaseAdmin.storage.from("documentos").download(storagePath);
+                if (data && !error) return Buffer.from(await data.arrayBuffer());
+                console.error(`Supabase download error for doc ${doc.id}:`, error);
+                return null;
+            } catch (e) {
+                console.error(`Failed to download doc ${doc.id} from Supabase:`, e);
+                return null;
+            }
+        }
+
+        /** Re-upload a buffer to Gemini File Manager and persist the new URI in the DB */
+        async function reuploadToGemini(doc: any, buffer: Buffer, mimeType: string): Promise<string | null> {
+            const tmpPath = path.join(os.tmpdir(), `${randomUUID()}_${doc.titulo || "file"}.pdf`);
+            try {
+                await writeFile(tmpPath, buffer);
+                const result = await fileManager.uploadFile(tmpPath, { mimeType, displayName: doc.titulo || doc.id });
+                const newUri = result.file.uri;
+                // Update DB so future generations use the fresh URI directly
+                await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: newUri } });
+                console.log(`Re-uploaded doc ${doc.id} to Gemini: ${newUri}`);
+                return newUri;
+            } catch (e) {
+                console.error(`Failed to re-upload doc ${doc.id} to Gemini:`, e);
+                return null;
+            } finally {
+                await unlink(tmpPath).catch(() => { });
+            }
+        }
 
         const rawFileParts = await Promise.all(docs.map(async (doc: any) => {
-            // Priority 1: Use geminiUri (fastest — file already at Google servers)
+            const mimeType = (doc.descricao || "application/pdf") as string;
+
+            // Priority 1: Validate that geminiUri is still alive before using it
             if (doc.geminiUri) {
                 try {
-                    return {
-                        type: "file" as const,
-                        data: new URL(doc.geminiUri),
-                        mediaType: (doc.descricao || "application/pdf") as string
-                    };
-                } catch {
-                    console.warn(`Invalid geminiUri for doc ${doc.id}, falling back to Supabase`);
+                    const fileId = doc.geminiUri.split("/files/")[1];
+                    if (fileId) await fileManager.getFile(fileId); // throws if expired/missing
+                    return { type: "file" as const, data: new URL(doc.geminiUri), mediaType: mimeType };
+                } catch (e: any) {
+                    const is403 = e?.statusCode === 403 || e?.status === 403 || String(e).includes("403") || String(e).includes("PERMISSION_DENIED");
+                    if (is403) {
+                        console.warn(`GeminiUri expired for doc ${doc.id}. Clearing and falling back to Supabase.`);
+                        // Clear stale URI from DB
+                        await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: null } }).catch(() => { });
+                    } else {
+                        console.warn(`GeminiUri check failed for doc ${doc.id}:`, e);
+                    }
+                    // Fall through to Supabase
                 }
             }
 
-            // Priority 2: Download from Supabase (fallback for docs without geminiUri)
-            if (doc.url) {
-                try {
-                    let storagePath = doc.url;
-
-                    // Legacy: old public Supabase URLs — extract storagePath from the URL
-                    if (doc.url.startsWith("http")) {
-                        const match = doc.url.match(/\/documentos\/(.+)$/);
-                        if (match) {
-                            storagePath = match[1]; // e.g. "userId/timestamp_filename.pdf"
-                        } else {
-                            // Truly external URL — attempt direct fetch
-                            const res = await fetch(doc.url, { signal: AbortSignal.timeout(10000) });
-                            if (res.ok) {
-                                const buffer = await res.arrayBuffer();
-                                return { type: "file" as const, data: buffer, mediaType: "application/pdf" };
-                            }
-                            storagePath = null as any;
-                        }
-                    }
-
-                    if (storagePath) {
-                        const { data, error } = await supabaseAdmin.storage.from("documentos").download(storagePath);
-                        if (data && !error) {
-                            const buffer = await data.arrayBuffer();
-                            return { type: "file" as const, data: buffer, mediaType: "application/pdf" };
-                        } else {
-                            console.error(`Supabase download error for doc ${doc.id}:`, error);
-                        }
-                    }
-                } catch (e) {
-                    console.error(`Failed to fetch doc ${doc.id} from Supabase:`, e);
+            // Priority 2: Download from Supabase then re-upload to Gemini for future speed
+            const buffer = await downloadFromSupabase(doc);
+            if (buffer) {
+                const mime = doc.descricao || "application/pdf";
+                // Try to re-upload so next time it's fast again
+                const newUri = await reuploadToGemini(doc, buffer, mime);
+                if (newUri) {
+                    return { type: "file" as const, data: new URL(newUri), mediaType: mime };
                 }
+                // If re-upload failed, pass the buffer directly
+                return { type: "file" as const, data: buffer, mediaType: mime };
             }
 
             console.warn(`Doc ${doc.id} has no accessible content. Skipping.`);

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { useExam } from "@/contexts/ExamContext"
 
 interface SidebarProps {
@@ -13,6 +13,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className }: SidebarProps) {
+    const { data: session } = useSession()
+    const userName = session?.user?.name || session?.user?.email || "Usuário"
+    const initials = userName
+        .split(" ")
+        .slice(0, 2)
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
     const [isCollapsed, setIsCollapsed] = useState(false)
     const pathname = usePathname()
     const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico/simulados'))
@@ -233,9 +241,9 @@ export function Sidebar({ className }: SidebarProps) {
                     <>
                         <div className="flex items-center gap-3 px-3 py-2 flex-1 text-sm font-medium text-foreground rounded-lg">
                             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                <span className="text-[10px] font-bold text-primary">AG</span>
+                                <span className="text-[10px] font-bold text-primary">{initials}</span>
                             </div>
-                            <span className="flex-1 text-left truncate">Aluno Gênio</span>
+                            <span className="flex-1 text-left truncate">{userName}</span>
                         </div>
                         <div className="w-px h-6 bg-border/50 mx-1 shrink-0"></div>
                         <button
@@ -248,8 +256,8 @@ export function Sidebar({ className }: SidebarProps) {
                     </>
                 ) : (
                     <>
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0" title="Aluno Gênio">
-                            <span className="text-xs font-bold text-primary">AG</span>
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0" title={userName}>
+                            <span className="text-xs font-bold text-primary">{initials}</span>
                         </div>
                         <div className="w-6 h-px bg-border/50 shrink-0"></div>
                         <button

@@ -95,19 +95,27 @@ interface ExamContextType {
 
 const ExamContext = createContext<ExamContextType | undefined>(undefined);
 
-function loadFromStorage(): Record<string, ExamState> {
+function loadFromStorage(userId: string | null | undefined): Record<string, ExamState> {
     if (typeof window === 'undefined') return {};
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
         if (!raw) return {};
-        return JSON.parse(raw) as Record<string, ExamState>;
+        const parsed = JSON.parse(raw) as { userId?: string; exams?: Record<string, ExamState> };
+
+        // Discard data if it belongs to a different user
+        if (!parsed.userId || !userId || parsed.userId !== userId) {
+            sessionStorage.removeItem(STORAGE_KEY);
+            return {};
+        }
+
+        return parsed.exams ?? {};
     } catch {
         return {};
     }
 }
 
-function saveToStorage(exams: Record<string, ExamState>) {
-    if (typeof window === 'undefined') return;
+function saveToStorage(userId: string | null | undefined, exams: Record<string, ExamState>) {
+    if (typeof window === 'undefined' || !userId) return;
     try {
         const activeExams: Record<string, ExamState> = {};
         for (const [id, exam] of Object.entries(exams)) {
@@ -116,7 +124,7 @@ function saveToStorage(exams: Record<string, ExamState>) {
             }
         }
         if (Object.keys(activeExams).length > 0) {
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(activeExams));
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ userId, exams: activeExams }));
         } else {
             sessionStorage.removeItem(STORAGE_KEY);
         }
@@ -132,7 +140,8 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     const prevUserId = useRef<string | null | undefined>(session?.user?.id);
 
     const [exams, setExams] = useState<Record<string, ExamState>>(() => {
-        return loadFromStorage();
+        // Load only if userId matches — prevents cross-user leakage
+        return loadFromStorage(session?.user?.id);
     });
 
     // Clear exams if the user changes (e.g., logout or login as different user)
@@ -174,8 +183,9 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
                     if (!exam) return prev;
                     return { ...prev, [generatingExamId]: { ...exam, questions: validQuestions } };
                 });
-                setQuestionsReceived(validQuestions.length);
             }
+            // Always track the raw stream count for real-time progress display (includes partial questions)
+            setQuestionsReceived(questionsStream.length);
             prevStreamCount.current = questionsStream.length;
         }
     }, [questionsStream.length, generatingExamId]);
@@ -254,7 +264,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
             isFirstMount.current = false;
             return;
         }
-        saveToStorage(exams);
+        saveToStorage(session?.user?.id, exams);
     }, [exams]);
 
     // Track which exam the user is currently viewing

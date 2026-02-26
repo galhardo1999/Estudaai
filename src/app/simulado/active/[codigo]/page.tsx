@@ -225,6 +225,28 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
                 </div>
             )}
 
+            {/* Generation progress pill — visible while streaming, even after questions start */}
+            {isThisExamGenerating && !isRetrying && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-zinc-900/90 backdrop-blur-sm border border-primary/30 text-primary text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+                    <span>
+                        {examCtx.questionsReceived > 0
+                            ? `${examCtx.questionsReceived} / ${exam.questionCount} questões geradas`
+                            : "Gerando questões..."}
+                    </span>
+                    {/* Mini progress bar */}
+                    {exam.questionCount > 0 && (
+                        <div className="w-16 h-1 bg-primary/20 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                                style={{ width: `${Math.min((examCtx.questionsReceived / exam.questionCount) * 100, 100)}%` }}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+
             {activeQuestionsList[exam.currentQuestionIndex] ? (
                 <QuestionScreen
                     key={exam.currentQuestionIndex}
