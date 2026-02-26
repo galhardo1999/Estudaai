@@ -178,12 +178,12 @@ export async function POST(request: Request) {
                     })
                 ),
             }),
-            system: `Baseando-se estritamente nos documentos anexados, gere questões de múltipla escolha para um simulado de concurso. Você é um estruturador de JSON. CADA QUESTÃO DEVE TER EXATAMENTE 5 OPÇÕES (A, B, C, D, E). ${difficultyPrompt}`,
+            system: `Baseando-se estritamente nos documentos anexados, gere questões de múltipla escolha para um simulado de concurso. Você é um estruturador de JSON. CADA QUESTÃO DEVE TER EXATAMENTE 5 OPÇÕES (A, B, C, D, E). ${difficultyPrompt} REGRAS OBRIGATÓRIAS PARA AS ALTERNATIVAS: (1) DISTRIBUIÇÃO DA CORRETA — distribua aleatória e uniformemente a alternativa correta entre A, B, C, D e E ao longo de todo o simulado; NUNCA concentre as corretas em B, C ou D; (2) TAMANHO DAS ALTERNATIVAS — todas as 5 alternativas de uma mesma questão devem ter comprimento muito similar (diferença máxima de ~20% em palavras); a alternativa correta NÃO pode ser visivelmente mais longa ou detalhada que as incorretas; elabore as incorretas para equalizar o tamanho se necessário; (3) CAPITALIZAÇÃO — dentro de cada questão, padronize maiúsculas e minúsculas em todas as alternativas de forma consistente; não misture estilos de capitalização entre opções da mesma questão.`,
             messages: [
                 {
                     role: "user" as const,
                     content: [
-                        { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Dificuldade: ${difficulty.toUpperCase()}. Baseie as perguntas no material fornecido. Lembre-se: é OBRIGATÓRIO fornecer 5 alternativas (A, B, C, D, E) para cada questão, sendo apenas 1 correta.` },
+                        { type: "text" as const, text: `Assunto foco: "${topic}". Quantidade desejada: ${questionCount}. Dificuldade: ${difficulty.toUpperCase()}. Baseie as perguntas no material fornecido. Obrigações: (1) exatamente 5 alternativas (A, B, C, D, E) por questão com apenas 1 correta; (2) alternativas corretas bem distribuídas entre A, B, C, D e E — não concentre em B, C ou D; (3) todas as alternativas de cada questão devem ter tamanho de texto parecido — a correta não pode ser a mais longa; (4) capitalize todas as alternativas da mesma questão de forma idêntica e consistente.` },
                         { type: "text" as const, text: "Material de Estudo:" },
                         ...fileParts
                     ]

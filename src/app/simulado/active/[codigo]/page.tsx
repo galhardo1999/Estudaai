@@ -54,6 +54,7 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
                     totalQuestoes: activeQuestionsList.length,
                     duracao: totalSeconds,
                     codigo: exam.examId,
+                    dificuldade: exam.dificuldade || "medio",
                     questoes: activeQuestionsList,
                     respostas: exam.userAnswers,
                     documentNames: exam.documentNames

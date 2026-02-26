@@ -97,6 +97,7 @@ model Exame {
   pontuacao     Int
   totalQuestoes Int
   duracao       Int      // Tempo gasto em segundos
+  dificuldade   String   @default("medio") // "facil" | "medio" | "dificil"
   questoes      Json?    // Estrutura das perguntas passadas
   respostas     Json?    // Mapeamento do id_da_questao -> id_da_opcao escolhida
   criadoEm      DateTime @default(now())

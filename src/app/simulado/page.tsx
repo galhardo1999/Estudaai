@@ -348,7 +348,7 @@ export default function SimuladoSetupPage() {
                                 questionCount,
                                 difficulty
                             }
-                            exam.startExam(timeLimit, questionCount, examId, localDocs.map(d => d.name))
+                            exam.startExam(timeLimit, questionCount, examId, localDocs.map(d => d.name), difficulty)
                             setTimeout(() => {
                                 exam.generateExam(examId, genParams)
                             }, 100)

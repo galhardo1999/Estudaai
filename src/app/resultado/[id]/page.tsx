@@ -29,8 +29,16 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
 
     const correctCount = exame.pontuacao
     const totalQuestions = exame.totalQuestoes
-    const wrongCount = totalQuestions - correctCount // Simplification for history
+    const wrongCount = totalQuestions - correctCount
     const percentage = Math.round((correctCount / totalQuestions) * 100) || 0
+    const numericScore = ((correctCount / totalQuestions) * 10).toFixed(2) // e.g. "5.00" for 30/60
+
+    const dificuldadeLabel: Record<string, { label: string; color: string }> = {
+        facil: { label: "Fácil", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+        medio: { label: "Médio", color: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
+        dificil: { label: "Difícil", color: "bg-red-500/10 text-red-400 border-red-500/30" },
+    }
+    const diff = dificuldadeLabel[(exame as any).dificuldade ?? "medio"] ?? dificuldadeLabel.medio
 
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
@@ -43,25 +51,29 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
             </div>
 
             <main className="flex-1 w-full max-w-4xl mx-auto px-6 pb-12">
-                <h1 className="text-2xl font-medium mb-2">Detalhes do Simulado</h1>
-                <p className="text-zinc-400 mb-8 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    {exame.nomesDocumentos?.length > 0 ? exame.nomesDocumentos.join(", ") : (exame.documento?.titulo || "Documento Geral")}
-                </p>
+                <h1 className="text-2xl font-medium mb-1">Detalhes do Simulado</h1>
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                    <p className="text-zinc-400 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        {exame.nomesDocumentos?.length > 0 ? exame.nomesDocumentos.join(", ") : (exame.documento?.titulo || "Documento Geral")}
+                    </p>
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${diff.color}`}>
+                        {diff.label}
+                    </span>
+                </div>
 
-                {/* Top Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    {/* Score Card */}
+                    {/* Score Card — numeric */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
-                        <span className="text-sm text-zinc-400 font-medium mb-2">Pontuação</span>
+                        <span className="text-sm text-zinc-400 font-medium mb-2">Nota Final</span>
                         <div className="text-4xl font-medium">
-                            {correctCount}<span className="text-zinc-500 text-3xl">/{totalQuestions}</span>
+                            {numericScore}<span className="text-zinc-500 text-2xl"></span>
                         </div>
                     </div>
 
                     {/* Percentage Card */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
-                        <span className="text-sm text-zinc-400 font-medium mb-2">de acerto</span>
+                        <span className="text-sm text-zinc-400 font-medium mb-2">% de acerto</span>
                         <div className="text-4xl font-medium">
                             {percentage}%
                         </div>

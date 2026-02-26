@@ -34,11 +34,12 @@ export type ExamState = {
     isFinished: boolean;
     documentNames?: string[];
     retryCount: number;
+    dificuldade: string;
 };
 
 const STORAGE_KEY = 'active-exams';
 
-const createDefaultExam = (examId: string, timeLimit: number, questionCount: number, documentNames?: string[]): ExamState => ({
+const createDefaultExam = (examId: string, timeLimit: number, questionCount: number, documentNames?: string[], dificuldade = "medio"): ExamState => ({
     examId,
     questions: [],
     currentQuestionIndex: 0,
@@ -52,6 +53,7 @@ const createDefaultExam = (examId: string, timeLimit: number, questionCount: num
     isFinished: false,
     documentNames: documentNames || [],
     retryCount: 0,
+    dificuldade,
 });
 
 const questionSchema = z.object({
@@ -83,7 +85,7 @@ interface ExamContextType {
     generationStatus: GenerationStatus;
     questionsReceived: number;
     viewingExamId: string | null;
-    startExam: (timeLimit: number, questionCount: number, examId: string, documentNames?: string[]) => void;
+    startExam: (timeLimit: number, questionCount: number, examId: string, documentNames?: string[], dificuldade?: string) => void;
     generateExam: (examId: string, params: GenParams) => void;
     getExam: (examId: string) => ExamState | null;
     answerQuestion: (examId: string, questionId: string, optionId: string, isCorrect: boolean) => void;
@@ -193,20 +195,36 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     // Clear generatingExamId when generation finishes successfully
     useEffect(() => {
         if (generatingExamId && !isLoading && prevStreamCount.current > 0) {
+            // Final sync: when streaming ends, apply ALL valid questions from the stream.
+            // The last question often becomes fully valid only on the final tick where
+            // questionsStream.length hasn't changed (only its content), so the incremental
+            // effect above misses it. This guarantees every complete question is captured.
+            const finalValidQuestions = (questionsStream as ExamQuestion[]).filter(
+                q => q && Array.isArray(q.options) && q.options.length > 0
+            );
+            if (finalValidQuestions.length > 0) {
+                setExams(prev => {
+                    const exam = prev[generatingExamId];
+                    if (!exam) return prev;
+                    return { ...prev, [generatingExamId]: { ...exam, questions: finalValidQuestions } };
+                });
+            }
+
             setGeneratingExamId(null);
             setGenerationStatus('idle');
             setQuestionsReceived(0);
             currentGenParams.current = null;
 
-            // Improvement 6: Persist generated questions to DB
+            // Persist generated questions to DB
             const examSnapshot = exams[generatingExamId];
-            if (examSnapshot && examSnapshot.questions.length > 0) {
+            const questionsToSave = finalValidQuestions.length > 0 ? finalValidQuestions : examSnapshot?.questions;
+            if (questionsToSave && questionsToSave.length > 0) {
                 fetch('/api/save-questions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        codigo: examSnapshot.examId,
-                        questoes: examSnapshot.questions,
+                        codigo: examSnapshot?.examId ?? generatingExamId,
+                        questoes: questionsToSave,
                     }),
                 }).catch(e => console.error('Failed to persist questions:', e));
             }
@@ -293,10 +311,10 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
     const activeExams = Object.values(exams).filter(e => e.isActive && !e.isFinished);
 
-    const startExam = useCallback((timeLimit: number, questionCount: number, examId: string, documentNames?: string[]) => {
+    const startExam = useCallback((timeLimit: number, questionCount: number, examId: string, documentNames?: string[], dificuldade = "medio") => {
         setExams(prev => ({
             ...prev,
-            [examId]: createDefaultExam(examId, timeLimit, questionCount, documentNames),
+            [examId]: createDefaultExam(examId, timeLimit, questionCount, documentNames, dificuldade),
         }));
     }, []);
 

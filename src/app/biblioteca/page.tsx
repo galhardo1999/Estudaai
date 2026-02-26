@@ -2,18 +2,20 @@
 
 import { useState } from "react"
 import { useDocuments } from "@/contexts/DocumentContext"
-import { FolderPlus, UploadCloud, Folder, FileText, Trash2, ChevronRight, Home, Eye, X, Loader2 } from "lucide-react"
+import { FolderPlus, UploadCloud, Folder, FileText, Trash2, ChevronRight, Home, Eye, X, Loader2, Pencil } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function BibliotecaPage() {
-    const { documents, folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId, removeDocument, moveDocument, addDocument, isLoading } = useDocuments()
+    const { documents, folders, addFolder, removeFolder, renameFolder, currentFolderId, setCurrentFolderId, removeDocument, moveDocument, addDocument, isLoading } = useDocuments()
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false)
     const [newFolderName, setNewFolderName] = useState("")
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
     const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null)
     const [previewLoading, setPreviewLoading] = useState(true)
     const [uploadingFiles, setUploadingFiles] = useState<{ name: string; size: number }[]>([])
+    const [isRenameFolderModalOpen, setIsRenameFolderModalOpen] = useState(false)
+    const [renameFolderValue, setRenameFolderValue] = useState("")
 
     // Filter items based on current folder
     const currentFolders = folders.filter(f => f.parentId === (currentFolderId || undefined))
@@ -42,6 +44,14 @@ export default function BibliotecaPage() {
             addFolder(newFolderName.trim(), currentFolderId || undefined)
             setNewFolderName("")
             setIsCreateFolderModalOpen(false)
+        }
+    }
+
+    const handleRenameFolder = (e: React.FormEvent) => {
+        e.preventDefault()
+        if (renameFolderValue.trim() && currentFolderId) {
+            renameFolder(currentFolderId, renameFolderValue.trim())
+            setIsRenameFolderModalOpen(false)
         }
     }
 
@@ -138,6 +148,20 @@ export default function BibliotecaPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {currentFolderId && (
+                        <button
+                            onClick={() => {
+                                const currentFolder = folders.find(f => f.id === currentFolderId)
+                                setRenameFolderValue(currentFolder?.name ?? "")
+                                setIsRenameFolderModalOpen(true)
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors text-sm font-medium border border-border/50 shadow-sm"
+                        >
+                            <Pencil className="w-4 h-4" />
+                            <span>Renomear Pasta</span>
+                        </button>
+                    )}
+
                     <button
                         onClick={() => setIsCreateFolderModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors text-sm font-medium border border-border/50 shadow-sm"
@@ -312,6 +336,54 @@ export default function BibliotecaPage() {
                     </div>
                 )}
             </div>
+
+            {/* Rename Folder Modal */}
+            {isRenameFolderModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card w-full max-w-md rounded-2xl border border-border/50 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6">
+                            <h2 className="text-xl font-semibold text-foreground mb-1">Renomear Pasta</h2>
+                            <p className="text-sm text-muted-foreground mb-6">Digite o novo nome para a pasta atual.</p>
+
+                            <form onSubmit={handleRenameFolder}>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label htmlFor="renameFolderInput" className="block text-sm font-medium text-foreground mb-1.5">
+                                            Novo Nome
+                                        </label>
+                                        <input
+                                            id="renameFolderInput"
+                                            type="text"
+                                            value={renameFolderValue}
+                                            onChange={(e) => setRenameFolderValue(e.target.value)}
+                                            placeholder="Ex: Concurso INSS"
+                                            className="w-full px-4 py-2.5 bg-background border border-border/50 rounded-xl text-foreground placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 mt-8">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRenameFolderModalOpen(false)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-foreground transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={!renameFolderValue.trim()}
+                                        className="px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Renomear
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Create Folder Modal */}
             {isCreateFolderModalOpen && (

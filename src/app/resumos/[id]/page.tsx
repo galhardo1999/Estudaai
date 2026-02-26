@@ -38,7 +38,7 @@ function renderFlashcards(text: string) {
     const cards: { front: string; back: string }[] = []
 
     // Pattern 1: "**Frente:** text\n**Verso:** text"
-    const frontBackPattern = /\*\*Frente:\*\*\s*(.+?)(?:\n|\r\n)\*\*Verso:\*\*\s*(.+?)(?=\n\n|\n\*\*Frente|\n\d+\.|\z)/gs
+    const frontBackPattern = /\*\*Frente:\*\*\s*([\s\S]+?)(?:\n|\r\n)\*\*Verso:\*\*\s*([\s\S]+?)(?=\n\n|\n\*\*Frente|\n\d+\.|$)/g
     let match
     while ((match = frontBackPattern.exec(text)) !== null) {
         cards.push({ front: match[1].trim(), back: match[2].trim() })
@@ -46,7 +46,7 @@ function renderFlashcards(text: string) {
 
     // Pattern 2: "**P:** / **R:**"
     if (cards.length === 0) {
-        const prPattern = /\*\*P[ergunta]*:\*\*\s*(.+?)(?:\n|\r\n)\*\*R[esposta]*:\*\*\s*(.+?)(?=\n\n|\n\*\*P|\z)/gs
+        const prPattern = /\*\*P[ergunta]*:\*\*\s*([\s\S]+?)(?:\n|\r\n)\*\*R[esposta]*:\*\*\s*([\s\S]+?)(?=\n\n|\n\*\*P|$)/g
         while ((match = prPattern.exec(text)) !== null) {
             cards.push({ front: match[1].trim(), back: match[2].trim() })
         }

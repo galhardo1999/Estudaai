@@ -46,7 +46,7 @@ export async function POST(request: Request) {
                     return {
                         type: "file" as const,
                         data: new URL(doc.geminiUri),
-                        mediaType: "application/pdf",
+                        mediaType: (doc.descricao || "application/pdf") as string,
                     };
                 } catch {
                     console.warn(`Invalid geminiUri for doc ${doc.id}, falling back to Supabase`);

@@ -35,7 +35,8 @@ interface ExamData {
 function computeStats(exams: ExamData[]) {
     const totalSimulados = exams.length
     const totalQuestoes = exams.reduce((sum, e) => sum + e.totalQuestoes, 0)
-    const totalAcertos = exams.reduce((sum, e) => sum + Math.round((e.pontuacao / 100) * e.totalQuestoes), 0)
+    // pontuacao stores the raw correct answer count (not a percentage)
+    const totalAcertos = exams.reduce((sum, e) => sum + e.pontuacao, 0)
     const totalErros = totalQuestoes - totalAcertos
     const totalDuracao = exams.reduce((sum, e) => sum + e.duracao, 0)
     const tempoMedio = totalQuestoes > 0 ? totalDuracao / totalQuestoes : 0
@@ -54,12 +55,15 @@ function computeEvolution(exams: ExamData[], days: number) {
         return d >= prevPeriodStart && d < periodStart
     })
 
+    // Derive percentage score (0-100) from raw correct count
+    const toPercent = (e: ExamData) => e.totalQuestoes > 0 ? (e.pontuacao / e.totalQuestoes) * 100 : 0
+
     const currentAvg = currentExams.length > 0
-        ? currentExams.reduce((sum, e) => sum + e.pontuacao, 0) / currentExams.length
+        ? currentExams.reduce((sum, e) => sum + toPercent(e), 0) / currentExams.length
         : null
 
     const prevAvg = prevExams.length > 0
-        ? prevExams.reduce((sum, e) => sum + e.pontuacao, 0) / prevExams.length
+        ? prevExams.reduce((sum, e) => sum + toPercent(e), 0) / prevExams.length
         : null
 
     const diff = currentAvg !== null && prevAvg !== null
@@ -97,8 +101,9 @@ export default async function DashboardPage() {
     const evo15 = computeEvolution(exams, 15)
     const evo30 = computeEvolution(exams, 30)
 
-    const melhorNota = exams.length > 0 ? Math.max(...exams.map(e => e.pontuacao)) : 0
-    const mediaGeral = exams.length > 0 ? exams.reduce((s, e) => s + e.pontuacao, 0) / exams.length : 0
+    const toPercent = (e: ExamData) => e.totalQuestoes > 0 ? (e.pontuacao / e.totalQuestoes) * 100 : 0
+    const melhorNota = exams.length > 0 ? Math.max(...exams.map(toPercent)) : 0
+    const mediaGeral = exams.length > 0 ? exams.reduce((s, e) => s + toPercent(e), 0) / exams.length : 0
     const recentExams = exams.slice(0, 10)
 
     const hasData = exams.length > 0
@@ -270,12 +275,12 @@ export default async function DashboardPage() {
                                                 <span className="text-xs text-muted-foreground w-16 shrink-0 text-right">{dateStr}</span>
                                                 <div className="flex-1 bg-border/30 rounded-full h-5 overflow-hidden relative">
                                                     <div
-                                                        className={`h-full rounded-full transition-all ${getBarColor(exam.pontuacao)}`}
-                                                        style={{ width: `${exam.pontuacao}%` }}
+                                                        className={`h-full rounded-full transition-all ${getBarColor(toPercent(exam))}`}
+                                                        style={{ width: `${toPercent(exam)}%` }}
                                                     />
                                                 </div>
-                                                <span className={`text-sm font-semibold w-12 text-right ${getScoreColor(exam.pontuacao)}`}>
-                                                    {(exam.pontuacao / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
+                                                <span className={`text-sm font-semibold w-12 text-right ${getScoreColor(toPercent(exam))}`}>
+                                                    {Math.round(toPercent(exam))}%
                                                 </span>
                                             </div>
                                         )

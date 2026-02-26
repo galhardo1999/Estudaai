@@ -32,6 +32,7 @@ interface DocumentContextType {
     folders: FolderType[];
     addFolder: (name: string, parentId?: string) => void;
     removeFolder: (id: string) => void;
+    renameFolder: (id: string, newName: string) => Promise<void>;
     currentFolderId: string | null;
     setCurrentFolderId: (id: string | null) => void;
 }
@@ -141,6 +142,22 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const renameFolder = async (id: string, newName: string) => {
+        const trimmed = newName.trim();
+        if (!trimmed) return;
+        // Optimistic update
+        setFolders(prev => prev.map(f => f.id === id ? { ...f, name: trimmed } : f));
+        try {
+            await fetch(`/api/folders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: trimmed }),
+            });
+        } catch (error) {
+            console.error("Failed to rename folder:", error);
+        }
+    };
+
     const moveDocument = async (id: string, folderId: string | null) => {
         // Update local state immediately
         setDocuments(prev => prev.map(d => d.id === id ? { ...d, folderId: folderId || undefined } : d));
@@ -162,7 +179,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     return (
         <DocumentContext.Provider value={{
             documents, addDocument, removeDocument, activeDocumentId, setActiveDocumentId, activeDocument, moveDocument, isLoading,
-            folders, addFolder, removeFolder, currentFolderId, setCurrentFolderId
+            folders, addFolder, removeFolder, renameFolder, currentFolderId, setCurrentFolderId
         }}>
             {children}
         </DocumentContext.Provider>
