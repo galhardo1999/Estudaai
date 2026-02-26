@@ -18,6 +18,8 @@ export type ExamQuestion = {
     }[];
 };
 
+export type GenerationStatus = 'idle' | 'generating' | 'retrying' | 'failed';
+
 export type ExamState = {
     examId: string;
     questions: ExamQuestion[];
@@ -30,11 +32,13 @@ export type ExamState = {
     questionCount: number;
     isActive: boolean;
     isFinished: boolean;
+    documentNames?: string[];
+    retryCount: number;
 };
 
 const STORAGE_KEY = 'active-exams';
 
-const createDefaultExam = (examId: string, timeLimit: number, questionCount: number): ExamState => ({
+const createDefaultExam = (examId: string, timeLimit: number, questionCount: number, documentNames?: string[]): ExamState => ({
     examId,
     questions: [],
     currentQuestionIndex: 0,
@@ -46,6 +50,8 @@ const createDefaultExam = (examId: string, timeLimit: number, questionCount: num
     questionCount,
     isActive: true,
     isFinished: false,
+    documentNames: documentNames || [],
+    retryCount: 0,
 });
 
 const questionSchema = z.object({
@@ -63,8 +69,7 @@ const questionSchema = z.object({
 })
 
 type GenParams = {
-    fileUris?: (string | null | undefined)[];
-    documents?: { url: string; geminiUri?: string | null }[];
+    documentIds: string[];
     topic: string;
     questionCount: number;
     difficulty: string;
@@ -75,8 +80,10 @@ interface ExamContextType {
     activeExams: ExamState[];
     generatingExamId: string | null;
     isGenerating: boolean;
+    generationStatus: GenerationStatus;
+    questionsReceived: number;
     viewingExamId: string | null;
-    startExam: (timeLimit: number, questionCount: number, examId: string) => void;
+    startExam: (timeLimit: number, questionCount: number, examId: string, documentNames?: string[]) => void;
     generateExam: (examId: string, params: GenParams) => void;
     getExam: (examId: string) => ExamState | null;
     answerQuestion: (examId: string, questionId: string, optionId: string, isCorrect: boolean) => void;
@@ -102,7 +109,6 @@ function loadFromStorage(): Record<string, ExamState> {
 function saveToStorage(exams: Record<string, ExamState>) {
     if (typeof window === 'undefined') return;
     try {
-        // Only save active exams
         const activeExams: Record<string, ExamState> = {};
         for (const [id, exam] of Object.entries(exams)) {
             if (exam.isActive) {
@@ -118,6 +124,8 @@ function saveToStorage(exams: Record<string, ExamState>) {
         // quota exceeded or similar, ignore
     }
 }
+
+const MAX_RETRIES = 2;
 
 export function ExamProvider({ children }: { children: React.ReactNode }) {
     const { data: session } = useSession();
@@ -138,16 +146,21 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     }, [session?.user?.id]);
 
     const [generatingExamId, setGeneratingExamId] = useState<string | null>(null);
+    const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
+    const [questionsReceived, setQuestionsReceived] = useState(0);
+
+    // Store current gen params for retries
+    const currentGenParams = useRef<{ examId: string; params: GenParams } | null>(null);
 
     // AI streaming — lives here so it persists across navigation
-    const { submit, isLoading, object } = useObject({
+    const { submit, isLoading, object, error } = useObject({
         api: "/api/generate-exam",
         schema: questionSchema
     })
 
     const questionsStream = object?.questions ?? []
 
-    // Sync streamed questions into the generating exam
+    // Sync streamed questions into the generating exam + track progress
     const prevStreamCount = useRef(0);
     useEffect(() => {
         if (!generatingExamId) return;
@@ -161,17 +174,78 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
                     if (!exam) return prev;
                     return { ...prev, [generatingExamId]: { ...exam, questions: validQuestions } };
                 });
+                setQuestionsReceived(validQuestions.length);
             }
             prevStreamCount.current = questionsStream.length;
         }
     }, [questionsStream.length, generatingExamId]);
 
-    // Clear generatingExamId when generation finishes
+    // Clear generatingExamId when generation finishes successfully
     useEffect(() => {
         if (generatingExamId && !isLoading && prevStreamCount.current > 0) {
             setGeneratingExamId(null);
+            setGenerationStatus('idle');
+            setQuestionsReceived(0);
+            currentGenParams.current = null;
+
+            // Improvement 6: Persist generated questions to DB
+            const examSnapshot = exams[generatingExamId];
+            if (examSnapshot && examSnapshot.questions.length > 0) {
+                fetch('/api/save-questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        codigo: examSnapshot.examId,
+                        questoes: examSnapshot.questions,
+                    }),
+                }).catch(e => console.error('Failed to persist questions:', e));
+            }
         }
-    }, [isLoading, generatingExamId]);
+    }, [isLoading, generatingExamId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Handle errors during generation — retry up to MAX_RETRIES times
+    useEffect(() => {
+        if (error && generatingExamId) {
+            const examSnapshot = exams[generatingExamId];
+            const retryCount = examSnapshot?.retryCount ?? 0;
+
+            if (retryCount < MAX_RETRIES && currentGenParams.current) {
+                const nextRetry = retryCount + 1;
+                console.warn(`Exam generation failed. Retry ${nextRetry}/${MAX_RETRIES}...`);
+                setGenerationStatus('retrying');
+
+                // Increment retry count in state
+                setExams(prev => {
+                    const exam = prev[generatingExamId];
+                    if (!exam) return prev;
+                    return { ...prev, [generatingExamId]: { ...exam, retryCount: nextRetry } };
+                });
+
+                // Retry after a short delay
+                const { params } = currentGenParams.current;
+                const retryExamId = generatingExamId;
+                setTimeout(() => {
+                    prevStreamCount.current = 0;
+                    submit(params);
+                    setGeneratingExamId(retryExamId);
+                }, 2000);
+
+            } else {
+                console.error(`Exam generation failed after ${MAX_RETRIES} retries.`, error);
+                setGenerationStatus('failed');
+                // Remove the stuck exam from state
+                setExams(prev => {
+                    const updated = { ...prev };
+                    delete updated[generatingExamId];
+                    return updated;
+                });
+                setGeneratingExamId(null);
+                prevStreamCount.current = 0;
+                setQuestionsReceived(0);
+                currentGenParams.current = null;
+            }
+        }
+    }, [error, generatingExamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Persist to sessionStorage on every state change
     const isFirstMount = useRef(true);
@@ -205,20 +279,23 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [viewingExamId, viewingExamId ? exams[viewingExamId]?.isActive : null, viewingExamId ? exams[viewingExamId]?.isFinished : null, viewingExamId ? exams[viewingExamId]?.questions.length : null]);
+    }, [viewingExamId, viewingExamId ? exams[viewingExamId]?.isActive : null, viewingExamId ? exams[viewingExamId]?.isFinished : null, viewingExamId ? exams[viewingExamId]?.questions.length : null]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const activeExams = Object.values(exams).filter(e => e.isActive && !e.isFinished);
 
-    const startExam = useCallback((timeLimit: number, questionCount: number, examId: string) => {
+    const startExam = useCallback((timeLimit: number, questionCount: number, examId: string, documentNames?: string[]) => {
         setExams(prev => ({
             ...prev,
-            [examId]: createDefaultExam(examId, timeLimit, questionCount),
+            [examId]: createDefaultExam(examId, timeLimit, questionCount, documentNames),
         }));
     }, []);
 
     const generateExam = useCallback((examId: string, params: GenParams) => {
         prevStreamCount.current = 0;
         setGeneratingExamId(examId);
+        setGenerationStatus('generating');
+        setQuestionsReceived(0);
+        currentGenParams.current = { examId, params };
         submit(params);
     }, [submit]);
 
@@ -272,6 +349,8 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         });
         if (generatingExamId === examId) {
             setGeneratingExamId(null);
+            setGenerationStatus('idle');
+            currentGenParams.current = null;
         }
     }, [generatingExamId]);
 
@@ -281,6 +360,8 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
             activeExams,
             generatingExamId,
             isGenerating: isLoading,
+            generationStatus,
+            questionsReceived,
             viewingExamId,
             startExam,
             generateExam,

@@ -48,6 +48,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Folder name is required" }, { status: 400 });
         }
 
+        if (parentId) {
+            const parentFolder = await prisma.pasta.findUnique({ where: { id: parentId } });
+            if (!parentFolder || parentFolder.usuarioId !== session.user.id) {
+                return NextResponse.json({ error: "Forbidden or Parent Folder not found" }, { status: 403 });
+            }
+        }
+
         const pasta = await prisma.pasta.create({
             data: {
                 nome: name.trim(),

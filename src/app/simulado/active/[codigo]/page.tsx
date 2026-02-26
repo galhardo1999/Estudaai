@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, use } from "react"
 import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
 import { ResultDashboard } from "@/components/exam/ResultDashboard"
-import { BrainCircuit } from "lucide-react"
+import { BrainCircuit, AlertTriangle } from "lucide-react"
 import { useExam } from "@/contexts/ExamContext"
 import { useRouter } from "next/navigation"
 
@@ -14,7 +14,6 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
     const exam = examCtx.getExam(codigo)
 
     const [isSaving, setIsSaving] = useState(false)
-    const [phraseIndex, setPhraseIndex] = useState(0)
 
     // Register this exam as "being viewed" — timer only runs while viewing
     useEffect(() => {
@@ -23,27 +22,8 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
     }, [codigo]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const isThisExamGenerating = examCtx.generatingExamId === codigo && examCtx.isGenerating
-
-    // Rotating phrases while generating
-    const loadingPhrases = [
-        "A I.A. está analisando seu material...",
-        "Gerando questões com base no conteúdo...",
-        "Criando alternativas e gabaritos...",
-        "Montando o simulado perfeito pra você...",
-        "Quase lá, falta pouco...",
-        "Revisando a qualidade das questões...",
-        "Finalizando os últimos detalhes...",
-    ];
-
-    useEffect(() => {
-        if (!isThisExamGenerating || (exam && exam.questions.length > 0)) return;
-
-        const timer = setInterval(() => {
-            setPhraseIndex(prev => (prev + 1) % loadingPhrases.length);
-        }, 3500);
-
-        return () => clearInterval(timer);
-    }, [isThisExamGenerating, exam?.questions.length, loadingPhrases.length]);
+    const isRetrying = examCtx.generatingExamId === codigo && examCtx.generationStatus === 'retrying'
+    const hasFailed = examCtx.generationStatus === 'failed' && !examCtx.generatingExamId && !exam
 
     // Time's up handler
     const timeoutHandled = useRef(false);
@@ -75,7 +55,8 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
                     duracao: totalSeconds,
                     codigo: exam.examId,
                     questoes: activeQuestionsList,
-                    respostas: exam.userAnswers
+                    respostas: exam.userAnswers,
+                    documentNames: exam.documentNames
                 })
             });
         } catch (error) {
@@ -91,7 +72,7 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         if (exam.currentQuestionIndex < activeQuestionsList.length - 1) {
             examCtx.setCurrentQuestionIndex(codigo, prev => prev + 1)
         } else {
-            if (isThisExamGenerating && exam.currentQuestionIndex === activeQuestionsList.length - 1) return;
+            if (isThisExamGenerating) return; // Wait until generating is fully done
             await saveAndFinishExam()
         }
     }
@@ -113,7 +94,30 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         router.push('/simulado')
     }
 
-    // If no exam found, redirect to setup
+    // Generation failed permanently — show error screen
+    if (hasFailed) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center min-h-screen gap-6 text-center px-6">
+                <div className="w-20 h-20 rounded-full bg-danger/10 flex items-center justify-center">
+                    <AlertTriangle className="w-10 h-10 text-danger" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-semibold mb-2">Falha na Geração</h2>
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                        Não foi possível gerar o simulado após várias tentativas. Verifique se os documentos estão acessíveis e tente novamente.
+                    </p>
+                </div>
+                <button
+                    onClick={() => router.push('/simulado')}
+                    className="bg-primary hover:bg-primary-hover text-white font-medium py-2.5 px-8 rounded-full transition-colors"
+                >
+                    Tentar Novamente
+                </button>
+            </div>
+        )
+    }
+
+    // If no exam found in state, redirect to setup
     if (!exam) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center min-h-screen gap-4">
@@ -146,6 +150,10 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
 
     // Full-page loader while AI generates questions
     if (exam.questions.length === 0) {
+        const questionsReceived = examCtx.questionsReceived;
+        const questionCount = exam.questionCount;
+        const progressPct = questionCount > 0 ? Math.min((questionsReceived / questionCount) * 100, 100) : 0;
+
         return (
             <div className="flex-1 flex flex-col items-center justify-center min-h-screen gap-8">
                 <div className="relative w-28 h-28">
@@ -157,12 +165,31 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
                         <BrainCircuit className="w-10 h-10 text-primary animate-pulse" />
                     </div>
                 </div>
-                <p
-                    key={phraseIndex}
-                    className="text-lg font-medium text-muted-foreground text-center animate-fade-in"
-                >
-                    {loadingPhrases[phraseIndex]}
-                </p>
+
+                <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+                    {/* Progress bar */}
+                    <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${progressPct}%` }}
+                        />
+                    </div>
+
+                    {/* Status text */}
+                    {isRetrying ? (
+                        <p className="text-sm font-medium text-amber-400 animate-pulse">
+                            ⚠ Tentando novamente... ({exam.retryCount}/{2})
+                        </p>
+                    ) : questionsReceived > 0 ? (
+                        <p className="text-sm font-medium text-muted-foreground">
+                            {questionsReceived} / {questionCount} questões geradas...
+                        </p>
+                    ) : (
+                        <p className="text-lg font-medium text-muted-foreground text-center animate-pulse">
+                            A I.A. está analisando seu material...
+                        </p>
+                    )}
+                </div>
             </div>
         )
     }
@@ -176,19 +203,41 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         )
     }
 
+    const isLastAvailableQuestion = exam.currentQuestionIndex === activeQuestionsList.length - 1;
+    let nextButtonText = "Avançar";
+    let isNextDisabled = false;
+
+    if (isLastAvailableQuestion) {
+        if (isThisExamGenerating) {
+            nextButtonText = "Aguardando IA...";
+            isNextDisabled = true;
+        } else {
+            nextButtonText = "Finalizar";
+        }
+    }
+
     return (
         <div className="relative min-h-screen">
+            {/* Retry toast */}
+            {isRetrying && (
+                <div className="fixed top-4 right-4 z-50 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg animate-in slide-in-from-top-2">
+                    ⚠ Gerando questões novamente... ({exam.retryCount}/{2})
+                </div>
+            )}
+
             {activeQuestionsList[exam.currentQuestionIndex] ? (
                 <QuestionScreen
                     key={exam.currentQuestionIndex}
                     questionIndex={exam.currentQuestionIndex}
-                    totalQuestions={activeQuestionsList.length}
+                    totalQuestions={exam.questionCount}
                     question={activeQuestionsList[exam.currentQuestionIndex]}
                     onAnswer={handleAnswer}
                     onNext={handleNext}
                     onBack={exam.currentQuestionIndex > 0 ? handleBack : undefined}
                     timeRemaining={exam.timeRemaining}
                     initialSelectedOptionId={exam.userAnswers[activeQuestionsList[exam.currentQuestionIndex].id]}
+                    nextButtonText={nextButtonText}
+                    isNextDisabled={isNextDisabled}
                 />
             ) : (
                 <div className="flex items-center justify-center min-h-screen">

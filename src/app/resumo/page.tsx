@@ -9,7 +9,7 @@ type SummarySource = "library" | "upload" | null
 type SummaryType = "resumo" | "flashcards"
 type Step = "source" | "result"
 
-type AnalyzedFile = { name: string; url: string; geminiUri?: string | null }
+type AnalyzedFile = { id: string; name: string; url: string; geminiUri?: string | null }
 
 function renderMarkdown(text: string, isStreaming: boolean) {
     return (
@@ -72,7 +72,7 @@ export default function ResumoPage() {
                 const res = await fetch("/api/upload", { method: "POST", body: formData })
                 if (!res.ok) throw new Error("Upload failed")
                 const data = await res.json()
-                if (data.document) results.push({ name: data.document.name, url: data.document.url, geminiUri: data.document.geminiUri })
+                if (data.document) results.push({ id: data.document.id, name: data.document.name, url: data.document.url, geminiUri: data.document.geminiUri })
             }
             setUploadedDocs(prev => [...prev, ...results])
         } catch (err) {
@@ -95,7 +95,7 @@ export default function ResumoPage() {
         const res = await fetch("/api/generate-summary", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documents: [{ url: file.url, geminiUri: file.geminiUri }], summaryType })
+            body: JSON.stringify({ documentIds: [file.id], summaryType })
         })
         if (!res.ok || !res.body) throw new Error("Failed")
 
@@ -124,7 +124,7 @@ export default function ResumoPage() {
 
     const handleGenerate = async () => {
         const files: AnalyzedFile[] = source === "library"
-            ? documents.filter(d => selectedDocIds.includes(d.id)).map(d => ({ name: d.name, url: d.url, geminiUri: d.geminiUri }))
+            ? documents.filter(d => selectedDocIds.includes(d.id)).map(d => ({ id: d.id, name: d.name, url: d.url, geminiUri: d.geminiUri }))
             : uploadedDocs
 
         setAnalyzedFiles(files)

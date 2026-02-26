@@ -12,7 +12,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { pontuacao, totalQuestoes, duracao = 0, documentoId = null, questoes, respostas, codigo } = body;
+        const { pontuacao, totalQuestoes, duracao = 0, documentoId = null, questoes, respostas, codigo, documentNames = [] } = body;
 
         if (pontuacao === undefined || totalQuestoes === undefined) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
                 codigo: codigo || null,
                 questoes: questoes ? questoes : undefined,
                 respostas: respostas ? respostas : undefined,
+                nomesDocumentos: documentNames,
                 usuarioId: session.user.id,
                 ...(documentoId && { documentoId })
             }

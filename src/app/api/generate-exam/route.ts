@@ -4,6 +4,8 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: Request) {
     try {
@@ -14,9 +16,13 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { documents, fileUris, questionCount = 5, topic = "Qualquer assunto abordado no texto", difficulty = "medio" } = body;
-
-        const docs = documents || (fileUris || []).map((uri: string) => ({ geminiUri: uri }));
+        const {
+            documentIds = [],
+            tempDocs = [], // { geminiUri: string, name: string }[] — uploaded directly to Gemini, not in DB
+            questionCount = 5,
+            topic = "Qualquer assunto abordado no texto",
+            difficulty = "medio"
+        } = body;
 
         const difficultyInstructions: Record<string, string> = {
             facil: "Nível FÁCIL: Gere questões diretas e conceituais. Foque em definições, conceitos básicos e informações explícitas no texto. As alternativas incorretas devem ser claramente distintas da correta. Evite pegadinhas.",
@@ -26,8 +32,19 @@ export async function POST(request: Request) {
 
         const difficultyPrompt = difficultyInstructions[difficulty] || difficultyInstructions.medio;
 
-        if (!docs || !Array.isArray(docs) || docs.length === 0) {
+        if (documentIds.length === 0 && tempDocs.length === 0) {
             return NextResponse.json({ error: "At least one document is required" }, { status: 400 });
+        }
+
+        // Only query DB if there are library document IDs
+        let docs: any[] = [];
+        if (documentIds.length > 0) {
+            docs = await prisma.documento.findMany({
+                where: {
+                    id: { in: documentIds },
+                    usuarioId: session.user.id
+                }
+            });
         }
 
         const apiKey = process.env.GEMINI_API_KEY;
@@ -39,28 +56,75 @@ export async function POST(request: Request) {
             apiKey: apiKey,
         });
 
-        const fileParts = await Promise.all(docs.map(async (doc: any) => {
-            if (doc.url) {
+        const rawFileParts = await Promise.all(docs.map(async (doc: any) => {
+            // Priority 1: Use geminiUri (fastest — file already at Google servers)
+            if (doc.geminiUri) {
                 try {
-                    const res = await fetch(doc.url);
-                    if (res.ok) {
-                        const buffer = await res.arrayBuffer();
-                        return {
-                            type: "file" as const,
-                            data: buffer,
-                            mediaType: "application/pdf"
-                        };
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch doc url:", e);
+                    return {
+                        type: "file" as const,
+                        data: new URL(doc.geminiUri),
+                        mediaType: (doc.descricao || "application/pdf") as string
+                    };
+                } catch {
+                    console.warn(`Invalid geminiUri for doc ${doc.id}, falling back to Supabase`);
                 }
             }
-            return {
-                type: "file" as const,
-                data: new URL(doc.geminiUri),
-                mediaType: "application/pdf"
-            };
+
+            // Priority 2: Download from Supabase (fallback for docs without geminiUri)
+            if (doc.url) {
+                try {
+                    let storagePath = doc.url;
+
+                    // Legacy: old public Supabase URLs — extract storagePath from the URL
+                    if (doc.url.startsWith("http")) {
+                        const match = doc.url.match(/\/documentos\/(.+)$/);
+                        if (match) {
+                            storagePath = match[1]; // e.g. "userId/timestamp_filename.pdf"
+                        } else {
+                            // Truly external URL — attempt direct fetch
+                            const res = await fetch(doc.url);
+                            if (res.ok) {
+                                const buffer = await res.arrayBuffer();
+                                return { type: "file" as const, data: buffer, mediaType: "application/pdf" };
+                            }
+                            storagePath = null as any;
+                        }
+                    }
+
+                    if (storagePath) {
+                        const { data, error } = await supabaseAdmin.storage.from("documentos").download(storagePath);
+                        if (data && !error) {
+                            const buffer = await data.arrayBuffer();
+                            return { type: "file" as const, data: buffer, mediaType: "application/pdf" };
+                        } else {
+                            console.error(`Supabase download error for doc ${doc.id}:`, error);
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch doc ${doc.id} from Supabase:`, e);
+                }
+            }
+
+            console.warn(`Doc ${doc.id} has no accessible content. Skipping.`);
+            return null;
         }));
+
+        // Append temp docs (uploaded directly to Gemini, no DB record)
+        const tempFileParts = (tempDocs as { geminiUri: string }[]).map(td => {
+            try {
+                return { type: "file" as const, data: new URL(td.geminiUri), mediaType: "application/pdf" };
+            } catch {
+                return null;
+            }
+        });
+
+        const fileParts = [...rawFileParts, ...tempFileParts].filter(part => part !== null);
+
+        // Improvement 3: Fail fast if no valid documents could be loaded
+        if (fileParts.length === 0) {
+            return NextResponse.json({ error: "Nenhum documento acessível encontrado. Verifique se os arquivos foram carregados corretamente." }, { status: 400 });
+        }
+
 
         const result = streamObject({
             model: googleProvider("gemini-2.5-flash"),

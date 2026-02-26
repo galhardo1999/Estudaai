@@ -15,8 +15,8 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const pathname = usePathname()
-    const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico'))
-    const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo'))
+    const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico/simulados'))
+    const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo') || pathname.startsWith('/historico/resumos'))
     const exam = useExam()
 
     const formatTime = (seconds: number) => {
@@ -85,12 +85,12 @@ export function Sidebar({ className }: SidebarProps) {
                             className={cn(
                                 "flex items-center justify-between py-2 text-sm font-medium rounded-lg transition-colors w-full",
                                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
-                                (pathname.startsWith("/simulado") || pathname.startsWith("/historico")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                (pathname.startsWith("/simulado") || pathname.startsWith("/historico/simulados")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                             )}
                             title={isCollapsed ? "Simulados" : undefined}
                         >
                             <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                                <Target className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/simulado") || pathname.startsWith("/historico")) ? "text-primary" : "")} />
+                                <Target className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/simulado") || pathname.startsWith("/historico/simulados")) ? "text-primary" : "")} />
                                 {!isCollapsed && <span className="truncate">Simulados</span>}
                             </div>
                             {!isCollapsed && (
@@ -110,10 +110,10 @@ export function Sidebar({ className }: SidebarProps) {
                                     <span className="truncate">Gerar Simulado</span>
                                 </Link>
                                 <Link
-                                    href="/historico"
+                                    href="/historico/simulados"
                                     className={cn(
                                         "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
-                                        pathname.startsWith("/historico") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                        pathname.startsWith("/historico/simulados") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                                     )}
                                 >
                                     <span className="truncate">Histórico de Simulados</span>
@@ -136,12 +136,12 @@ export function Sidebar({ className }: SidebarProps) {
                             className={cn(
                                 "flex items-center justify-between py-2 text-sm font-medium rounded-lg transition-colors w-full",
                                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
-                                pathname.startsWith("/resumo") ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                (pathname.startsWith("/resumo") || pathname.startsWith("/historico/resumos")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                             )}
                             title={isCollapsed ? "Resumo de Estudos" : undefined}
                         >
                             <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                                <BookOpen className={cn("w-5 h-5 shrink-0", pathname.startsWith("/resumo") ? "text-primary" : "")} />
+                                <BookOpen className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/resumo") || pathname.startsWith("/historico/resumos")) ? "text-primary" : "")} />
                                 {!isCollapsed && <span className="truncate">Resumo de Estudos</span>}
                             </div>
                             {!isCollapsed && (
@@ -161,10 +161,10 @@ export function Sidebar({ className }: SidebarProps) {
                                     <span className="truncate">Criar Novo Resumo</span>
                                 </Link>
                                 <Link
-                                    href="/resumos/historico"
+                                    href="/historico/resumos"
                                     className={cn(
                                         "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
-                                        pathname.startsWith("/resumos") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                        pathname.startsWith("/historico/resumos") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                                     )}
                                 >
                                     <span className="truncate">Histórico de Resumos</span>

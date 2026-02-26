@@ -13,7 +13,7 @@ export default function SimuladoSetupPage() {
     const router = useRouter()
 
     // Setup form state
-    type LocalDoc = { id: string; name: string; url: string; geminiUri?: string | null }
+    type LocalDoc = { id: string; name: string; url: string; geminiUri?: string | null; isTemp?: boolean }
     const [localDocs, setLocalDocs] = useState<LocalDoc[]>([])
     const [topic, setTopic] = useState("")
     const [questionCount, setQuestionCount] = useState(30)
@@ -86,7 +86,8 @@ export default function SimuladoSetupPage() {
                     const formData = new FormData()
                     formData.append("file", file)
 
-                    const res = await fetch("/api/upload", {
+                    // Use upload-temp: goes directly to Gemini, NOT saved to library
+                    const res = await fetch("/api/upload-temp", {
                         method: "POST",
                         body: formData,
                     })
@@ -94,16 +95,15 @@ export default function SimuladoSetupPage() {
                     if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
 
                     const data = await res.json()
-                    const newDoc = {
+                    const tempDoc = {
                         id: data.document.id,
                         name: data.document.name,
-                        url: data.document.url,
+                        url: "",
                         geminiUri: data.document.geminiUri,
+                        isTemp: true,
                     }
-                    setLocalDocs(prev => [...prev, newDoc])
-
-                    // Also add to library so it appears immediately
-                    setLibraryDocs(prev => [{ ...newDoc, folderId: undefined }, ...prev])
+                    setLocalDocs(prev => [...prev, tempDoc])
+                    // NOTE: NOT adding to libraryDocs — temp uploads stay out of the library
                 })
 
                 await Promise.all(uploadPromises)
@@ -319,18 +319,36 @@ export default function SimuladoSetupPage() {
                 <div className="flex md:flex-row flex-col items-center justify-between mt-4 gap-4">
                     <div className="flex-1 w-full">
                         {localDocs.length === 0 && <p className="text-sm text-amber-500/80">⚠ Selecione pelo menos um documento antes de gerar.</p>}
-                        {exam.isGenerating && <p className="text-sm text-amber-500/80">⚠ Aguarde a geração do simulado atual terminar antes de criar outro.</p>}
+                        {exam.isGenerating && exam.generatingExamId && (
+                            <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                                <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                                <p className="text-sm text-amber-300 flex-1">Simulado sendo gerado...</p>
+                                <button
+                                    onClick={() => router.push(`/simulado/active/${exam.generatingExamId}`)}
+                                    className="text-xs font-semibold text-amber-300 border border-amber-500/50 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-colors whitespace-nowrap"
+                                >
+                                    Ir para o Simulado →
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <button
                         onClick={() => {
                             const examId = Math.random().toString(36).substring(2, 6).toUpperCase()
+                            // Separate library docs (have real DB ids) from temp uploads
+                            const libraryDocIds = localDocs.filter(d => !d.isTemp).map(d => d.id)
+                            const tempDocs = localDocs
+                                .filter(d => d.isTemp && d.geminiUri)
+                                .map(d => ({ geminiUri: d.geminiUri!, name: d.name }))
+
                             const genParams = {
-                                documents: localDocs.map(d => ({ url: d.url, geminiUri: d.geminiUri })),
+                                documentIds: libraryDocIds,
+                                tempDocs,
                                 topic: topic || "Conhecimentos gerais do documento",
                                 questionCount,
                                 difficulty
                             }
-                            exam.startExam(timeLimit, questionCount, examId)
+                            exam.startExam(timeLimit, questionCount, examId, localDocs.map(d => d.name))
                             setTimeout(() => {
                                 exam.generateExam(examId, genParams)
                             }, 100)

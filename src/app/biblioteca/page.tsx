@@ -268,7 +268,7 @@ export default function BibliotecaPage() {
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             setPreviewLoading(true)
-                                            setPreviewDoc({ name: doc.name, url: doc.url })
+                                            setPreviewDoc({ name: doc.name, url: `/api/documents/${doc.id}/view` })
                                         }}
                                     >
                                         <FileText className="w-6 h-6 transition-opacity group-hover/icon:opacity-0" />

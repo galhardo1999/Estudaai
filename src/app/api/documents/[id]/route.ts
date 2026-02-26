@@ -27,19 +27,21 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Extract the storage path from the Supabase URL
+        // Handle both older public URLs and newer concise storagePaths
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
         const bucketPrefix = `${supabaseUrl}/storage/v1/object/public/documentos/`;
+        let storagePath = documento.url;
 
         if (documento.url.startsWith(bucketPrefix)) {
-            const storagePath = documento.url.replace(bucketPrefix, "");
-            const { error: deleteStorageError } = await supabaseAdmin.storage
-                .from("documentos")
-                .remove([decodeURIComponent(storagePath)]);
+            storagePath = documento.url.replace(bucketPrefix, "");
+        }
 
-            if (deleteStorageError) {
-                console.error("Supabase delete error:", deleteStorageError);
-            }
+        const { error: deleteStorageError } = await supabaseAdmin.storage
+            .from("documentos")
+            .remove([decodeURIComponent(storagePath)]);
+
+        if (deleteStorageError) {
+            console.error("Supabase delete error:", deleteStorageError);
         }
 
         await prisma.documento.delete({ where: { id } });
@@ -74,6 +76,13 @@ export async function PATCH(
 
         if (documento.usuarioId !== session.user.id) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        if (folderId) {
+            const folder = await prisma.pasta.findUnique({ where: { id: folderId } });
+            if (!folder || folder.usuarioId !== session.user.id) {
+                return NextResponse.json({ error: "Forbidden or Folder not found" }, { status: 403 });
+            }
         }
 
         await prisma.documento.update({

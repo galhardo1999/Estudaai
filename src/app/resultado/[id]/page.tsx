@@ -24,7 +24,7 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
 
     // Security check
     if (exame.usuarioId !== session.user.id) {
-        redirect("/historico")
+        redirect("/historico/simulados")
     }
 
     const correctCount = exame.pontuacao
@@ -36,7 +36,7 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
             {/* Header / Back Link */}
             <div className="w-full max-w-4xl mx-auto px-6 pt-12 pb-4">
-                <Link href="/historico" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/historico/simulados" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Voltar para o Histórico
                 </Link>
@@ -46,7 +46,7 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
                 <h1 className="text-2xl font-medium mb-2">Detalhes do Simulado</h1>
                 <p className="text-zinc-400 mb-8 flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    {exame.documento?.titulo || "Documento Geral"}
+                    {exame.nomesDocumentos?.length > 0 ? exame.nomesDocumentos.join(", ") : (exame.documento?.titulo || "Documento Geral")}
                 </p>
 
                 {/* Top Stats Grid */}

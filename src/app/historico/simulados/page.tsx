@@ -70,7 +70,7 @@ export default async function HistoricoPage() {
                                         </h3>
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
                                             <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {formattedDate}</span>
-                                            <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {exam.documento?.titulo || "Documento Analisado"}</span>
+                                            <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {exam.nomesDocumentos?.length > 0 ? exam.nomesDocumentos.join(", ") : (exam.documento?.titulo || "Documento Analisado")}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -79,15 +79,21 @@ export default async function HistoricoPage() {
                                 <div className="flex items-center justify-between md:justify-end gap-6 md:gap-8 border-t md:border-t-0 border-border/50 pt-4 md:pt-0">
                                     <div className="flex items-center gap-6">
                                         <div className="text-center">
-                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Acertos</p>
-                                            <p className="text-lg font-medium text-foreground shadow-success/10 drop-shadow-sm">
-                                                {Math.round((exam.pontuacao / 100) * exam.totalQuestoes)}/{exam.totalQuestoes}
+                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Questões</p>
+                                            <p className="text-lg font-medium text-foreground drop-shadow-sm">
+                                                {exam.totalQuestoes}
                                             </p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Score</p>
-                                            <p className={`text-lg font-medium ${exam.pontuacao >= 70 ? 'text-success' : exam.pontuacao >= 50 ? 'text-yellow-500' : 'text-danger'}`}>
-                                                {exam.pontuacao}%
+                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Acertos</p>
+                                            <p className="text-lg font-medium text-success drop-shadow-sm">
+                                                {exam.pontuacao}
+                                            </p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Erros</p>
+                                            <p className="text-lg font-medium text-danger drop-shadow-sm">
+                                                {exam.totalQuestoes - exam.pontuacao}
                                             </p>
                                         </div>
                                     </div>

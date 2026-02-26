@@ -25,6 +25,8 @@ interface QuestionScreenProps {
     onAnswer: (isCorrect: boolean, questionId: string, optionId: string) => void
     timeRemaining: number
     initialSelectedOptionId?: string | null
+    nextButtonText?: string
+    isNextDisabled?: boolean
 }
 
 export function QuestionScreen({
@@ -36,6 +38,8 @@ export function QuestionScreen({
     onAnswer,
     timeRemaining,
     initialSelectedOptionId,
+    nextButtonText = "Avançar",
+    isNextDisabled = false,
 }: QuestionScreenProps) {
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(initialSelectedOptionId || null)
 
@@ -174,9 +178,15 @@ export function QuestionScreen({
                     {selectedOptionId && (
                         <button
                             onClick={onNext}
-                            className="bg-primary-hover hover:bg-primary text-black font-semibold tracking-wide py-2.5 px-8 rounded-full transition-all duration-200 active:scale-95 animate-in fade-in zoom-in-95"
+                            disabled={isNextDisabled}
+                            className={cn(
+                                "font-semibold tracking-wide py-2.5 px-8 rounded-full transition-all duration-200 active:scale-95 animate-in fade-in zoom-in-95",
+                                isNextDisabled
+                                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                                    : "bg-primary-hover hover:bg-primary text-black"
+                            )}
                         >
-                            Avançar
+                            {nextButtonText}
                         </button>
                     )}
                 </div>

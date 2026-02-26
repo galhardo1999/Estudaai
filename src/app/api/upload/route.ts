@@ -50,13 +50,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Failed to upload to storage" }, { status: 500 });
         }
 
-        // Get the public URL from Supabase
-        const { data: publicUrlData } = supabaseAdmin.storage
-            .from("documentos")
-            .getPublicUrl(storagePath);
-
-        const supabaseUrl = publicUrlData.publicUrl;
-
         // 3. Upload to Gemini File Manager (for AI processing)
         let geminiUri = "";
         const apiKey = process.env.GEMINI_API_KEY;
@@ -90,7 +83,7 @@ export async function POST(request: Request) {
             data: {
                 titulo: file.name,
                 descricao: mimeType,
-                url: supabaseUrl,
+                url: storagePath, // Save internal path instead of public URL for security
                 geminiUri: geminiUri || null,
                 tamanho: file.size,
                 usuarioId: session.user.id,
