@@ -82,7 +82,7 @@ export async function POST(request: Request) {
                             storagePath = match[1]; // e.g. "userId/timestamp_filename.pdf"
                         } else {
                             // Truly external URL — attempt direct fetch
-                            const res = await fetch(doc.url);
+                            const res = await fetch(doc.url, { signal: AbortSignal.timeout(10000) });
                             if (res.ok) {
                                 const buffer = await res.arrayBuffer();
                                 return { type: "file" as const, data: buffer, mediaType: "application/pdf" };
@@ -110,9 +110,13 @@ export async function POST(request: Request) {
         }));
 
         // Append temp docs (uploaded directly to Gemini, no DB record)
-        const tempFileParts = (tempDocs as { geminiUri: string }[]).map(td => {
+        const tempFileParts = tempDocs.map((td: unknown) => {
+            if (!td || typeof td !== 'object' || !('geminiUri' in td) || typeof (td as any).geminiUri !== 'string') {
+                console.warn('Invalid tempDoc entry, skipping:', td);
+                return null;
+            }
             try {
-                return { type: "file" as const, data: new URL(td.geminiUri), mediaType: "application/pdf" };
+                return { type: "file" as const, data: new URL((td as { geminiUri: string }).geminiUri), mediaType: "application/pdf" };
             } catch {
                 return null;
             }

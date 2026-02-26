@@ -93,7 +93,7 @@ export default async function HistoricoPage() {
                                         <div className="text-center">
                                             <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Erros</p>
                                             <p className="text-lg font-medium text-danger drop-shadow-sm">
-                                                {exam.totalQuestoes - exam.pontuacao}
+                                                {Math.max(0, exam.totalQuestoes - exam.pontuacao)}
                                             </p>
                                         </div>
                                     </div>
