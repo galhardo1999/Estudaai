@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, use } from "react"
 import { QuestionScreen, type Question } from "@/components/exam/QuestionScreen"
-import { ResultDashboard } from "@/components/exam/ResultDashboard"
 import { BrainCircuit, AlertTriangle } from "lucide-react"
 import { useExam } from "@/contexts/ExamContext"
 import { useRouter } from "next/navigation"
@@ -65,6 +64,7 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         } finally {
             examCtx.finishExam(codigo)
             setIsSaving(false)
+            router.push(`/simulado/resultado/${codigo}`)
         }
     }
 
@@ -135,18 +135,10 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
 
     const skippedCount = activeQuestionsList.length - (exam.correctCount + exam.wrongCount)
 
-    // Show results if exam is finished
+    // Redirect if exam is finished
     if (exam.isFinished) {
-        return (
-            <ResultDashboard
-                totalQuestions={activeQuestionsList.length}
-                correctCount={exam.correctCount}
-                wrongCount={exam.wrongCount}
-                skippedCount={skippedCount}
-                onReview={handleRestart}
-                onMoreQuestions={handleBackToSetup}
-            />
-        )
+        router.replace(`/simulado/resultado/${codigo}`)
+        return null
     }
 
     // Full-page loader while AI generates questions

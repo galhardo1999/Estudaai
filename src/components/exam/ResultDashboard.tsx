@@ -18,6 +18,7 @@ export function ResultDashboard({
     onMoreQuestions,
 }: ResultDashboardProps) {
     const percentage = Math.round((correctCount / totalQuestions) * 100) || 0
+    const numericScore = ((correctCount / totalQuestions) * 10).toFixed(2)
 
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
@@ -28,15 +29,15 @@ export function ResultDashboard({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     {/* Score Card */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
-                        <span className="text-sm text-zinc-400 font-medium mb-2">Pontuação</span>
+                        <span className="text-sm text-zinc-400 font-medium mb-2">Nota Final</span>
                         <div className="text-4xl font-medium">
-                            {correctCount}<span className="text-zinc-500 text-3xl">/{totalQuestions}</span>
+                            {numericScore}
                         </div>
                     </div>
 
                     {/* Percentage Card */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
-                        <span className="text-sm text-zinc-400 font-medium mb-2">de acerto</span>
+                        <span className="text-sm text-zinc-400 font-medium mb-2">% de acerto</span>
                         <div className="text-4xl font-medium">
                             {percentage}%
                         </div>
