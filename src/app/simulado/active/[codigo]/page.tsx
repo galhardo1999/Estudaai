@@ -141,8 +141,8 @@ export default function ActiveExamPage({ params }: { params: Promise<{ codigo: s
         return null
     }
 
-    // Full-page loader while AI generates questions
-    if (exam.questions.length === 0) {
+    // Full-page loader while AI generates questions — wait for ALL questions, not just the first
+    if (exam.questions.length === 0 || isThisExamGenerating) {
         const questionsReceived = examCtx.questionsReceived;
         const questionCount = exam.questionCount;
         const progressPct = questionCount > 0 ? Math.min((questionsReceived / questionCount) * 100, 100) : 0;
