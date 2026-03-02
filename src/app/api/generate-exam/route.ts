@@ -11,6 +11,7 @@ import { writeFile, unlink } from "fs/promises";
 import path from "path";
 import os from "os";
 import { randomUUID } from "crypto";
+import { trackTokenUsage } from "@/lib/tokenTracking";
 
 export async function POST(request: Request) {
     try {
@@ -190,7 +191,7 @@ export async function POST(request: Request) {
                 }
             ],
             temperature: 0.2, // Mantém a resposta descritiva porém concisa e lógica para questões
-            onFinish: ({ usage }) => {
+            onFinish: async ({ usage }) => {
                 // Fixed Vercel AI SDK token properties 
                 const inputTokens = usage.inputTokens ?? 0;
                 const outputTokens = usage.outputTokens ?? 0;
@@ -205,6 +206,15 @@ export async function POST(request: Request) {
                 console.log(`Output Tokens: ${outputTokens} ($${outputCost.toFixed(6)})`);
                 console.log(`Total Tokens: ${totalTokens}`);
                 console.log(`Estimated Cost: $${totalCost.toFixed(6)} USD`);
+
+                await trackTokenUsage({
+                    usuarioId: session.user.id,
+                    modelo: "gemini-2.5-flash",
+                    operation: 'generate_exam',
+                    inputTokens,
+                    outputTokens,
+                    totalTokens,
+                });
             }
         });
 

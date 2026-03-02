@@ -24,8 +24,13 @@ export async function proxy(req: NextRequest) {
             new URL(`/login?from=${encodeURIComponent(from)}`, req.url)
         );
     }
+
+    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
+    if (isAdminRoute && token?.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
 }
 
 export const config = {
-    matcher: ["/dashboard/:path*", "/simulado/:path*", "/resumo/:path*", "/resumos/:path*", "/historico/:path*", "/biblioteca/:path*", "/login", "/register"],
+    matcher: ["/dashboard/:path*", "/simulado/:path*", "/resumo/:path*", "/resumos/:path*", "/historico/:path*", "/biblioteca/:path*", "/admin/:path*", "/login", "/register"],
 };

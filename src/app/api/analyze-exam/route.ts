@@ -2,6 +2,7 @@ import { streamText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { trackTokenUsage } from "@/lib/tokenTracking";
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -73,6 +74,20 @@ Limite: 500–600 palavras. Tom: amigável, motivador e construtivo (nunca julga
         const result = streamText({
             model: google("gemini-2.5-flash"),
             prompt,
+            onFinish: async ({ usage }) => {
+                const inputTokens = usage.inputTokens ?? 0;
+                const outputTokens = usage.outputTokens ?? 0;
+                const totalTokens = usage.totalTokens ?? 0;
+
+                await trackTokenUsage({
+                    usuarioId: session.user.id,
+                    modelo: "gemini-2.5-flash",
+                    operation: 'analyze_exam',
+                    inputTokens,
+                    outputTokens,
+                    totalTokens,
+                });
+            }
         });
 
         return result.toTextStreamResponse();

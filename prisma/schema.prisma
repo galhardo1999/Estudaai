@@ -44,6 +44,7 @@ model User {
   // Custom properties from original PRD (made optional to support basic OAuth login)
   cpf           String?   @unique
   senha         String?
+  role          String?   @default("USER")
   dataNascimento DateTime?
   telefone      String?
   genero        String?
@@ -54,6 +55,7 @@ model User {
   pastas        Pasta[]
   exames        Exame[]
   resumos       Resumo[]
+  tokenUsages   TokenUsage[]
 }
 
 model VerificationToken {
@@ -116,4 +118,16 @@ model Resumo {
   criadoEm   DateTime @default(now())
   usuarioId   String
   usuario     User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model TokenUsage {
+  id           String   @id @default(uuid())
+  modelo       String   @default("gemini-2.5-flash")
+  operation    String   // e.g. "generate_resumo", "generate_exame"
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  totalTokens  Int      @default(0)
+  criadoEm     DateTime @default(now())
+  usuarioId    String?
+  usuario      User?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 }

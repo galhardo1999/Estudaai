@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { ArrowLeft, BookOpen, Layers, Calendar } from "lucide-react"
 import Link from "next/link"
+import ClientPDFWrapper from "./_components/ClientPDFWrapper"
 
 function renderMarkdown(text: string) {
     return (
@@ -132,19 +133,17 @@ export default async function ResumoDetailPage({ params }: { params: Promise<{ i
                             </p>
                         </div>
                     </div>
-
-                    <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 ${isFlashcard ? "bg-purple-500/10 text-purple-400" : "bg-primary/10 text-primary"}`}>
-                        {isFlashcard ? "Flashcards" : "Resumo Detalhado"}
-                    </span>
                 </div>
             </div>
 
-            {/* Content */}
+            {/* Content wrapped around our generic client wrapper to capture refs */}
             <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-10">
-                {isFlashcard
-                    ? renderFlashcards(resumo.conteudo)
-                    : renderMarkdown(resumo.conteudo)
-                }
+                <ClientPDFWrapper filename={resumo.nomeArquivo} isFlashcard={isFlashcard}>
+                    {isFlashcard
+                        ? renderFlashcards(resumo.conteudo)
+                        : renderMarkdown(resumo.conteudo)
+                    }
+                </ClientPDFWrapper>
             </div>
         </div>
     )

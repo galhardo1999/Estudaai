@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase";
+import { trackTokenUsage } from "@/lib/tokenTracking";
 
 export async function POST(request: Request) {
     try {
@@ -128,41 +129,57 @@ export async function POST(request: Request) {
                         Seja didático: evite repetições, cubra temas chave de forma equilibrada e garanta que as perguntas incentivem o pensamento crítico. Escreva em Português do Brasil, usando linguagem simples e acessível.`
         };
 
-        const result = streamText({
-            model: googleProvider("gemini-2.5-flash"),
-            system: systemPrompts[summaryType] || systemPrompts.resumo,
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: "Analise o seguinte material de estudo e gere o conteúdo solicitado:"
-                        },
-                        ...fileParts
-                    ],
-                },
-            ],
-            temperature: 0.3,
-            onFinish: ({ usage }) => {
-                const inputTokens = usage.inputTokens ?? 0;
-                const outputTokens = usage.outputTokens ?? 0;
-                const totalTokens = usage.totalTokens ?? 0;
+        let result;
+        try {
+            result = streamText({
+                model: googleProvider("gemini-2.5-flash"),
+                system: systemPrompts[summaryType] || systemPrompts.resumo,
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Analise o seguinte material de estudo e gere o conteúdo solicitado:"
+                            },
+                            ...fileParts
+                        ],
+                    },
+                ],
+                temperature: 0.3,
+                onFinish: async ({ usage }) => {
+                    const inputTokens = usage.inputTokens ?? 0;
+                    const outputTokens = usage.outputTokens ?? 0;
+                    const totalTokens = usage.totalTokens ?? 0;
 
-                const inputCost = (inputTokens / 1000000) * 0.30;
-                const outputCost = (outputTokens / 1000000) * 2.50;
-                const totalCost = inputCost + outputCost;
+                    const inputCost = (inputTokens / 1000000) * 0.30;
+                    const outputCost = (outputTokens / 1000000) * 2.50;
+                    const totalCost = inputCost + outputCost;
 
-                const typeName = summaryType === 'flashcards' ? 'Flashcards' : 'Resumo';
-                console.log(`\n📊 [TOKEN USAGE & COST - Gerar ${typeName}]`);
-                console.log(`Input Tokens: ${inputTokens} ($${inputCost.toFixed(6)})`);
-                console.log(`Output Tokens: ${outputTokens} ($${outputCost.toFixed(6)})`);
-                console.log(`Total Tokens: ${totalTokens}`);
-                console.log(`Estimated Cost: $${totalCost.toFixed(6)} USD`);
-            }
-        });
+                    const typeName = summaryType === 'flashcards' ? 'Flashcards' : 'Resumo';
+                    console.log(`\n📊 [TOKEN USAGE & COST - Gerar ${typeName}]`);
+                    console.log(`Input Tokens: ${inputTokens} ($${inputCost.toFixed(6)})`);
+                    console.log(`Output Tokens: ${outputTokens} ($${outputCost.toFixed(6)})`);
+                    console.log(`Total Tokens: ${totalTokens}`);
+                    console.log(`Estimated Cost: $${totalCost.toFixed(6)} USD`);
 
-        return result.toTextStreamResponse();
+                    await trackTokenUsage({
+                        usuarioId: session.user.id,
+                        modelo: "gemini-2.5-flash",
+                        operation: summaryType === 'flashcards' ? 'generate_flashcards' : 'generate_resumo',
+                        inputTokens,
+                        outputTokens,
+                        totalTokens,
+                    });
+                }
+            });
+
+            return result.toTextStreamResponse();
+        } catch (apiError: any) {
+            console.error("Gemini API Error details:", apiError);
+            const msg = apiError?.message || "Failed to call Gemini API";
+            return NextResponse.json({ error: msg }, { status: 400 });
+        }
     } catch (error) {
         console.error("Generate Summary error:", error);
         return NextResponse.json({ error: "Failed to generate summary" }, { status: 500 });
