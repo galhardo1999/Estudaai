@@ -144,6 +144,22 @@ export async function POST(request: Request) {
                 },
             ],
             temperature: 0.3,
+            onFinish: ({ usage }) => {
+                const inputTokens = usage.inputTokens ?? 0;
+                const outputTokens = usage.outputTokens ?? 0;
+                const totalTokens = usage.totalTokens ?? 0;
+
+                const inputCost = (inputTokens / 1000000) * 0.30;
+                const outputCost = (outputTokens / 1000000) * 2.50;
+                const totalCost = inputCost + outputCost;
+
+                const typeName = summaryType === 'flashcards' ? 'Flashcards' : 'Resumo';
+                console.log(`\n📊 [TOKEN USAGE & COST - Gerar ${typeName}]`);
+                console.log(`Input Tokens: ${inputTokens} ($${inputCost.toFixed(6)})`);
+                console.log(`Output Tokens: ${outputTokens} ($${outputCost.toFixed(6)})`);
+                console.log(`Total Tokens: ${totalTokens}`);
+                console.log(`Estimated Cost: $${totalCost.toFixed(6)} USD`);
+            }
         });
 
         return result.toTextStreamResponse();

@@ -190,6 +190,22 @@ export async function POST(request: Request) {
                 }
             ],
             temperature: 0.2, // Mantém a resposta descritiva porém concisa e lógica para questões
+            onFinish: ({ usage }) => {
+                // Fixed Vercel AI SDK token properties 
+                const inputTokens = usage.inputTokens ?? 0;
+                const outputTokens = usage.outputTokens ?? 0;
+                const totalTokens = usage.totalTokens ?? 0;
+
+                const inputCost = (inputTokens / 1000000) * 0.30;
+                const outputCost = (outputTokens / 1000000) * 2.50;
+                const totalCost = inputCost + outputCost;
+
+                console.log(`\n📊 [TOKEN USAGE & COST - Gerar Simulado]`);
+                console.log(`Input Tokens: ${inputTokens} ($${inputCost.toFixed(6)})`);
+                console.log(`Output Tokens: ${outputTokens} ($${outputCost.toFixed(6)})`);
+                console.log(`Total Tokens: ${totalTokens}`);
+                console.log(`Estimated Cost: $${totalCost.toFixed(6)} USD`);
+            }
         });
 
         return result.toTextStreamResponse();
