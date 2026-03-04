@@ -27,8 +27,18 @@ export default async function HistoricoPage() {
         where: {
             usuarioId: session.user.id
         },
-        include: {
-            documento: true
+        select: {
+            id: true,
+            codigo: true,
+            pontuacao: true,
+            totalQuestoes: true,
+            criadoEm: true,
+            nomesDocumentos: true,
+            documento: {
+                select: {
+                    titulo: true
+                }
+            }
         },
         orderBy: {
             criadoEm: 'desc'

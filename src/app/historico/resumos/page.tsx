@@ -25,6 +25,12 @@ export default async function HistoricoResumosPage() {
     const resumos = await prisma.resumo.findMany({
         where: { usuarioId: session.user.id },
         orderBy: { criadoEm: "desc" },
+        select: {
+            id: true,
+            tipo: true,
+            nomeArquivo: true,
+            criadoEm: true,
+        }
     })
 
     return (

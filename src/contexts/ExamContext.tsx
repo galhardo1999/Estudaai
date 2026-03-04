@@ -35,6 +35,8 @@ export type ExamState = {
     documentNames?: string[];
     retryCount: number;
     dificuldade: string;
+    /** Saved so generation can be auto-retried after a page refresh mid-stream */
+    genParams?: GenParams;
 };
 
 const STORAGE_KEY = 'active-exams';
@@ -72,6 +74,7 @@ const questionSchema = z.object({
 
 type GenParams = {
     documentIds: string[];
+    tempDocs?: { geminiUri: string; name: string }[];
     topic: string;
     questionCount: number;
     difficulty: string;
@@ -104,8 +107,10 @@ function loadFromStorage(userId: string | null | undefined): Record<string, Exam
         if (!raw) return {};
         const parsed = JSON.parse(raw) as { userId?: string; exams?: Record<string, ExamState> };
 
-        // Discard data if it belongs to a different user
-        if (!parsed.userId || !userId || parsed.userId !== userId) {
+        // Only discard when BOTH IDs are known and they don't match.
+        // If userId is undefined the session hasn't loaded yet (page refresh) —
+        // keep the stored data and let the user-change effect handle cleanup later.
+        if (userId && parsed.userId && parsed.userId !== userId) {
             sessionStorage.removeItem(STORAGE_KEY);
             return {};
         }
@@ -285,6 +290,23 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         saveToStorage(session?.user?.id, exams);
     }, [exams]);
 
+    // Keep a ref of exams so the mount-time auto-retry effect can read the initial value
+    const examsRef = useRef(exams);
+    useEffect(() => { examsRef.current = exams; }, [exams]);
+
+    // Auto-retry stuck exams on mount (e.g. page reloaded while generation was streaming)
+    useEffect(() => {
+        const stuckExam = Object.values(examsRef.current).find(
+            e => e.isActive && !e.isFinished && e.questions.length === 0 && e.genParams
+        );
+        if (stuckExam?.genParams) {
+            // Short delay to let the streaming hook initialise
+            setTimeout(() => {
+                generateExam(stuckExam.examId, stuckExam.genParams!);
+            }, 800);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Track which exam the user is currently viewing
     const [viewingExamId, setViewingExamId] = useState<string | null>(null);
 
@@ -319,6 +341,12 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const generateExam = useCallback((examId: string, params: GenParams) => {
+        // Persist genParams so we can auto-retry if the page reloads mid-generation
+        setExams(prev => {
+            const exam = prev[examId];
+            if (!exam) return prev;
+            return { ...prev, [examId]: { ...exam, genParams: params } };
+        });
         prevStreamCount.current = 0;
         setGeneratingExamId(examId);
         setGenerationStatus('generating');

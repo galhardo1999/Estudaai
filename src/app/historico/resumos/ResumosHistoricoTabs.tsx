@@ -9,7 +9,6 @@ type Resumo = {
     tipo: string
     nomeArquivo: string
     criadoEm: Date
-    conteudo: string
 }
 
 function ResumoCard({ resumo }: { resumo: Resumo }) {
@@ -24,7 +23,7 @@ function ResumoCard({ resumo }: { resumo: Resumo }) {
 
     return (
         <Link
-            href={`/resumos/${resumo.id}`}
+            href={isFlashcard ? `/resumos/flashcard/${resumo.id}` : `/resumos/detalhado/${resumo.id}`}
             className="group bg-card border border-border/50 hover:border-primary/50 rounded-2xl p-6 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-6"
         >
             <div className="flex items-start gap-4">

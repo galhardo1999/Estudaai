@@ -10,8 +10,7 @@ interface ClientPDFWrapperProps {
 }
 
 export default function ClientPDFWrapper({ filename, isFlashcard, children }: ClientPDFWrapperProps) {
-    // This ref captures the exact DOM elements inside the content section.
-    // react-to-pdf will clone these pixels to generate the PDF.
+    // This ref captures the exact DOM node to be rendered into the PDF.
     const contentRef = useRef<HTMLDivElement>(null)
 
     return (
