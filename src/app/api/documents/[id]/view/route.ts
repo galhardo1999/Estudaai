@@ -26,12 +26,12 @@ export async function GET(
             return new NextResponse("Forbidden", { status: 403 });
         }
 
-        // If it's still an old public URL (starts with http), just redirect to it
+        // Se ainda for uma URL pública antiga (começa com http), apenas redireciona para ela
         if (documento.url.startsWith("http")) {
             return NextResponse.redirect(documento.url);
         }
 
-        // Generate a 1-hour signed URL for the private storage path
+        // Gera uma URL assinada de 1 hora para o caminho de armazenamento privado
         const { data, error } = await supabaseAdmin.storage
             .from("documentos")
             .createSignedUrl(documento.url, 3600);

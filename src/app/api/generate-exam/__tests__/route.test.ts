@@ -12,7 +12,7 @@ vi.mock('@ai-sdk/google', () => ({
     createGoogleGenerativeAI: vi.fn(() => vi.fn(() => 'mocked-google-model')),
 }));
 
-// Mock GoogleAIFileManager used in generate-exam
+// Mocka o GoogleAIFileManager usado no generate-exam
 vi.mock('@google/generative-ai/server', () => {
     return {
         GoogleAIFileManager: class {
@@ -74,7 +74,7 @@ describe('POST /api/generate-exam', () => {
     test('should process valid document payloads and initiate streamObject', async () => {
         vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
-        // Mock a document coming from the DB with a valid gemini URI
+        // Mocka um documento vindo do banco com uma URI válida do Gemini
         (prisma.documento.findMany as any).mockResolvedValueOnce([
             { id: 'doc-1', usuarioId: 'user-1', geminiUri: 'https://gemini-uri/ok.pdf', descricao: 'application/pdf' }
         ]);
@@ -92,26 +92,26 @@ describe('POST /api/generate-exam', () => {
 
         const res = await POST(req);
 
-        // Stream should begin successfully
+        // O streaming deve iniciar com sucesso
         expect(res.status).toBe(200);
         expect(streamObject).toHaveBeenCalledTimes(1);
 
-        // Verify stream object was called with correct structure
+        // Verifica que o streamObject foi chamado com a estrutura correta
         const callArgs = vi.mocked(streamObject).mock.calls[0][0];
         const messagesContent = callArgs.messages?.[0].content as any[];
 
-        // We provided 1 library doc + 1 temp doc = 2 file parts + 2 text parts (prompt + prefix) = 4 total contents
+        // Fornecemos 1 doc da biblioteca + 1 doc temp = 2 partes de arquivo + 2 partes de texto (prompt + prefixo) = 4 conteúdos totais
         expect(messagesContent.length).toBe(4);
         expect(messagesContent[2].type).toBe('file');
 
-        // Check difficulty injection in prompt
+        // Verifica injeção de dificuldade no prompt
         expect(messagesContent[0].text).toContain('Dificuldade: FACIL');
         expect(messagesContent[0].text).toContain('Quantidade desejada: 3');
     });
 
     test('should return 400 if filtering results in zero valid accessible files', async () => {
         vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
-        // DB finds document but it has NO url and NO geminiUri
+        // Banco encontra o documento mas ele NÃO tem url nem geminiUri
         (prisma.documento.findMany as any).mockResolvedValueOnce([
             { id: 'doc-1', usuarioId: 'user-1' }
         ]);

@@ -25,9 +25,9 @@ export function ResultDashboard({
             <main className="flex-1 w-full max-w-4xl mx-auto px-6 py-12">
                 <h1 className="text-2xl font-medium mb-8">Você conseguiu! Teste concluído.</h1>
 
-                {/* Top Stats Grid */}
+                {/* Grid de Estatísticas Principais */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    {/* Score Card */}
+                    {/* Cartão de Pontuação */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
                         <span className="text-sm text-zinc-400 font-medium mb-2">Nota Final</span>
                         <div className="text-4xl font-medium">
@@ -35,7 +35,7 @@ export function ResultDashboard({
                         </div>
                     </div>
 
-                    {/* Percentage Card */}
+                    {/* Cartão de Porcentagem */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
                         <span className="text-sm text-zinc-400 font-medium mb-2">% de acerto</span>
                         <div className="text-4xl font-medium">
@@ -43,7 +43,7 @@ export function ResultDashboard({
                         </div>
                     </div>
 
-                    {/* Breakdown Card */}
+                    {/* Cartão de Detalhamento */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center text-sm font-medium">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-zinc-400">Corretas</span>
@@ -60,9 +60,9 @@ export function ResultDashboard({
                     </div>
                 </div>
 
-                {/* Strengths and Weaknesses Card */}
+                {/* Cartão de Pontos Fortes e Fracos */}
                 <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 mb-12">
-                    {/* Icon Box */}
+                    {/* Caixa de Ícone */}
                     <div className="shrink-0 w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                         <TrendingUp className="w-8 h-8" />
                     </div>
@@ -79,7 +79,7 @@ export function ResultDashboard({
                     </button>
                 </div>
 
-                {/* Continue Learning Section */}
+                {/* Seção Continuar Aprendendo */}
                 <h2 className="text-xl font-medium mb-6">Continuar aprendendo</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 

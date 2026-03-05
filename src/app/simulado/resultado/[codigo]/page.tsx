@@ -6,19 +6,19 @@ import { useRouter } from "next/navigation"
 import { TrendingUp, ChevronLeft, RotateCcw, Plus, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
 
-// Minimal markdown renderer for the AI report
+// Renderizador minimalista de markdown para o relatório da IA
 function renderMarkdown(text: string) {
     const lines = text.split("\n")
     return lines.map((line, i) => {
-        // ## Heading
+        // ## Título
         if (line.startsWith("## ")) {
             return <h2 key={i} className="text-lg font-semibold mt-6 mb-2 text-foreground">{line.replace(/^## /, "")}</h2>
         }
-        // ### Sub-heading
+        // ### Subtítulo
         if (line.startsWith("### ")) {
             return <h3 key={i} className="text-base font-semibold mt-4 mb-1 text-foreground">{line.replace(/^### /, "")}</h3>
         }
-        // Bullet
+        // Marcador
         if (line.startsWith("- ") || line.startsWith("* ")) {
             const content = line.replace(/^[-*] /, "")
             return (
@@ -26,9 +26,9 @@ function renderMarkdown(text: string) {
                     dangerouslySetInnerHTML={{ __html: content.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }} />
             )
         }
-        // Empty line
+        // Linha vazia
         if (line.trim() === "") return <div key={i} className="h-1" />
-        // Paragraph
+        // Parágrafo
         return (
             <p key={i} className="text-sm text-foreground/85 leading-relaxed mb-1"
                 dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }} />
@@ -47,7 +47,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
     const [reportOpen, setReportOpen] = useState(false)
     const reportRef = useRef<HTMLDivElement>(null)
 
-    // If no exam in context, derive minimal info from available state
+    // Se não há exame no contexto, deriva informações mínimas do estado disponível
     const questions = (exam?.questions ?? []) as any[]
     const correctCount = exam?.correctCount ?? 0
     const wrongCount = exam?.wrongCount ?? 0
@@ -83,7 +83,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                 }),
             })
 
-            if (!res.body) throw new Error("No response body")
+            if (!res.body) throw new Error("Sem corpo na resposta")
 
             const reader = res.body.getReader()
             const decoder = new TextDecoder()
@@ -96,7 +96,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                 setReport(accumulated)
             }
         } catch (err) {
-            console.error("Analyze failed:", err)
+            console.error("Falha na análise:", err)
             setReport("Erro ao gerar análise. Tente novamente.")
         } finally {
             setIsAnalyzing(false)
@@ -105,7 +105,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
 
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
-            {/* Back */}
+            {/* Voltar */}
             <div className="w-full max-w-4xl mx-auto px-6 pt-10 pb-2">
                 <Link
                     href="/historico/simulados"
@@ -125,7 +125,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                     </span>
                 </div>
 
-                {/* Stats Grid */}
+                {/* Grade de Estatísticas */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col justify-center">
                         <span className="text-sm text-zinc-400 font-medium mb-2">Nota Final</span>
@@ -151,7 +151,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                     </div>
                 </div>
 
-                {/* AI Analysis Card */}
+                {/* Cartão de Análise da IA */}
                 <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 mb-8">
                     <div className="shrink-0 w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                         <TrendingUp className="w-8 h-8" />
@@ -175,7 +175,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                     </button>
                 </div>
 
-                {/* Report */}
+                {/* Relatório */}
                 {(report || isAnalyzing) && (
                     <div ref={reportRef} className="bg-card border border-border/50 rounded-2xl overflow-hidden mb-8">
                         <button
@@ -203,7 +203,7 @@ export default function SimuladoResultadoPage({ params }: { params: Promise<{ co
                     </div>
                 )}
 
-                {/* Actions */}
+                {/* Ações */}
                 <div className="flex items-center justify-end gap-4 flex-wrap">
                     <button
                         onClick={() => {

@@ -62,7 +62,7 @@ describe('/api/documents', () => {
             const json = await res.json();
             expect(json.documents).toHaveLength(2);
 
-            // Check mappings for doc 1
+            // Verifica mapeamentos para o doc 1
             expect(json.documents[0]).toEqual({
                 id: 'doc-1',
                 name: 'Math Document',
@@ -73,7 +73,7 @@ describe('/api/documents', () => {
                 createdAt: mockDate.getTime(),
             });
 
-            // Check null to undefined coercion for root documents (doc 2)
+            // Verifica coerção de null para undefined em documentos na raiz (doc 2)
             expect(json.documents[1].folderId).toBeUndefined();
         });
 

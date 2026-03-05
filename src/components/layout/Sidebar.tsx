@@ -35,7 +35,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     return (
         <aside className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>
-            {/* Collapse Toggle */}
+            {/* Alternar Recolher */}
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="absolute -right-3 top-6 w-6 h-6 bg-card border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-zinc-800/50 transition-colors z-50 hidden md:flex"
@@ -43,7 +43,7 @@ export function Sidebar({ className }: SidebarProps) {
                 {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
 
-            {/* Brand */}
+            {/* Marca */}
             <div className="h-16 flex items-center px-6 border-b border-border/50">
                 <div className={cn("flex items-center text-foreground font-semibold text-lg transition-all", isCollapsed ? "justify-center w-full" : "gap-2")}>
                     <BrainCircuit className="w-6 h-6 shrink-0 text-primary" />
@@ -51,7 +51,7 @@ export function Sidebar({ className }: SidebarProps) {
                 </div>
             </div>
 
-            {/* Main Navigation */}
+            {/* Navegação Principal */}
             <div className={cn("flex-1 py-6 overflow-y-auto", isCollapsed ? "px-2" : "px-4")}>
                 {!isCollapsed && <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-2">Menu</h3>}
                 <nav className="flex flex-col gap-1 mb-8">
@@ -79,7 +79,7 @@ export function Sidebar({ className }: SidebarProps) {
                         <Library className={cn("w-5 h-5 shrink-0", pathname === "/biblioteca" ? "text-primary" : "")} />
                         {!isCollapsed && <span className="truncate">Biblioteca de Documentos</span>}
                     </Link>
-                    {/* Simulados Group */}
+                    {/* Grupo de Simulados */}
                     <div className="flex flex-col gap-1">
                         <button
                             onClick={() => {
@@ -130,7 +130,7 @@ export function Sidebar({ className }: SidebarProps) {
                         )}
                     </div>
 
-                    {/* Resumo de Estudos Group */}
+                    {/* Grupo de Resumos de Estudos */}
                     <div className="flex flex-col gap-1">
                         <button
                             onClick={() => {
@@ -182,7 +182,7 @@ export function Sidebar({ className }: SidebarProps) {
                     </div>
                 </nav>
 
-                {/* Active Exams */}
+                {/* Exames Ativos */}
                 {exam.activeExams.length > 0 && !isCollapsed && (
                     <div className="mt-2 mb-4">
                         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-2">
@@ -231,11 +231,11 @@ export function Sidebar({ className }: SidebarProps) {
                     </div>
                 )}
 
-                {/* Conditionally render documents and upload */}
-                {/* Removed Documents and Upload section */}
+                {/* Renderizar documentos e upload condicionalmente */}
+                {/* Seção de Documentos e Upload Removida */}
             </div>
 
-            {/* User Area */}
+            {/* Área do Usuário */}
             <div className={cn("p-4 border-t border-border/50 flex flex-col items-center gap-4", !isCollapsed && "flex-row justify-between")}>
                 {!isCollapsed ? (
                     <>

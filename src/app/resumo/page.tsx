@@ -40,14 +40,14 @@ export default function ResumoPage() {
     const { documents } = useDocuments()
     const [step, setStep] = useState<Step>("source")
 
-    // Source state
+    // Estado da fonte
     const [source, setSource] = useState<SummarySource>(null)
     const [selectedDocIds, setSelectedDocIds] = useState<string[]>([])
     const [uploadedDocs, setUploadedDocs] = useState<AnalyzedFile[]>([])
     const [isUploading, setIsUploading] = useState(false)
     const [summaryType, setSummaryType] = useState<SummaryType>("resumo")
 
-    // Per-file summaries: name -> text
+    // Resumos por arquivo: name -> text
     const [summaries, setSummaries] = useState<Record<string, string>>({})
     const [analyzedFiles, setAnalyzedFiles] = useState<AnalyzedFile[]>([])
     const [activeFileName, setActiveFileName] = useState<string>("")
@@ -76,7 +76,7 @@ export default function ResumoPage() {
             }
             setUploadedDocs(prev => [...prev, ...results])
         } catch (err) {
-            console.error("Upload error:", err)
+            console.error("Erro no upload:", err)
             alert("Erro ao fazer upload. Tente novamente.")
         } finally {
             setIsUploading(false)
@@ -97,7 +97,7 @@ export default function ResumoPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ documentIds: [file.id], summaryType })
         })
-        if (!res.ok || !res.body) throw new Error("Failed")
+        if (!res.ok || !res.body) throw new Error("Falhou")
 
         const reader = res.body.getReader()
         const decoder = new TextDecoder()
@@ -112,12 +112,12 @@ export default function ResumoPage() {
         buffer += decoder.decode()
         setSummaries(prev => ({ ...prev, [file.name]: buffer }))
 
-        // Persist to database
+        // Persiste no banco de dados
         fetch("/api/save-resumo", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tipo: summaryType, nomeArquivo: file.name, conteudo: buffer })
-        }).catch(err => console.error("Failed to save resumo:", err))
+        }).catch(err => console.error("Falha ao salvar resumo:", err))
 
         return buffer
     }
@@ -155,14 +155,14 @@ export default function ResumoPage() {
         setStreamingFileName("")
     }
 
-    // --- RESULT VIEW ---
+    // --- VISUALIZAÇÃO DE RESULTADO ---
     if (step === "result") {
         const activeText = summaries[activeFileName] ?? ""
         const isActiveStreaming = streamingFileName === activeFileName
 
         return (
             <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
-                {/* Top bar */}
+                {/* Barra superior */}
                 <div className="w-full max-w-6xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between border-b border-border/30">
                     <h1 className="text-xl font-semibold flex items-center gap-2">
                         {summaryType === "resumo" ? <BookOpen className="w-5 h-5 text-primary" /> : <Layers className="w-5 h-5 text-primary" />}
@@ -177,10 +177,10 @@ export default function ResumoPage() {
                     </button>
                 </div>
 
-                {/* Two-column layout */}
+                {/* Layout de duas colunas */}
                 <div className="flex flex-1 w-full max-w-6xl mx-auto px-6 pt-6 pb-16 gap-6">
 
-                    {/* Left sidebar: file selector */}
+                    {/* Barra lateral esquerda: seletor de arquivos */}
                     <aside className="w-56 shrink-0">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                             Arquivos Analisados
@@ -215,7 +215,7 @@ export default function ResumoPage() {
                         </div>
                     </aside>
 
-                    {/* Right: scrollable content */}
+                    {/* Direita: conteúdo com scroll */}
                     <div ref={resultRef} className="flex-1 overflow-auto min-h-0">
                         {activeText
                             ? renderMarkdown(activeText, isActiveStreaming)
@@ -232,7 +232,7 @@ export default function ResumoPage() {
         )
     }
 
-    // --- SETUP VIEW ---
+    // --- VISUALIZAÇÃO DE CONFIGURAÇÃO ---
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans p-6 md:p-12">
             <div className="max-w-3xl mx-auto w-full">
@@ -241,7 +241,7 @@ export default function ResumoPage() {
                     <p className="text-muted-foreground">Escolha seu material e a IA vai gerar um resumo ou flashcards para você.</p>
                 </header>
 
-                {/* Step 1: Source */}
+                {/* Etapa 1: Fonte */}
                 <section className="mb-10">
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4">1. Fonte do Material</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,7 +278,7 @@ export default function ResumoPage() {
                         </button>
                     </div>
 
-                    {/* Library Picker */}
+                    {/* Seletor da Biblioteca */}
                     {source === "library" && (
                         <div className="mt-4 border border-border/50 rounded-2xl overflow-hidden">
                             {documents.length === 0 ? (
@@ -308,7 +308,7 @@ export default function ResumoPage() {
                         </div>
                     )}
 
-                    {/* Upload Area */}
+                    {/* Área de Upload */}
                     {source === "upload" && (
                         <div className="mt-4 space-y-3">
                             <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border/50 rounded-2xl p-8 cursor-pointer hover:border-primary/50 transition-colors bg-card/50">
@@ -333,7 +333,7 @@ export default function ResumoPage() {
                     )}
                 </section>
 
-                {/* Step 2: Type */}
+                {/* Etapa 2: Tipo */}
                 {source && (
                     <section className="mb-10">
                         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4">2. Tipo de Saída</h2>
@@ -363,7 +363,7 @@ export default function ResumoPage() {
                     </section>
                 )}
 
-                {/* Generate Button */}
+                {/* Botão de Gerar */}
                 {source && (
                     <button
                         onClick={handleGenerate}

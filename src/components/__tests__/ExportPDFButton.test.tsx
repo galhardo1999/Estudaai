@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ExportPDFButton from '../ExportPDFButton';
 import { usePDF } from 'react-to-pdf';
 
-// Mock the react-to-pdf library hook
+// Mocka o hook da biblioteca react-to-pdf
 vi.mock('react-to-pdf', () => ({
     usePDF: vi.fn(),
 }));
@@ -16,7 +16,7 @@ describe('ExportPDFButton Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
 
-        // Setup the usePDF mock to return our spy function and a dummy targetRef
+        // Configura o mock do usePDF para retornar nossa função spy e um targetRef falso
         vi.mocked(usePDF).mockReturnValue({
             toPDF: mockToPDF,
             targetRef: mockTargetRef,
@@ -29,7 +29,7 @@ describe('ExportPDFButton Component', () => {
         const button = screen.getByRole('button', { name: /exportar pdf/i });
         expect(button).toBeInTheDocument();
 
-        // Ensure it doesn't trigger unexpectedly on mount
+        // Garante que não dispara inesperadamente na montagem
         expect(mockToPDF).not.toHaveBeenCalled();
     });
 
@@ -39,12 +39,12 @@ describe('ExportPDFButton Component', () => {
         const button = screen.getByRole('button', { name: /exportar pdf/i });
         fireEvent.click(button);
 
-        // It should call the hook trigger
+        // Deve chamar o gatilho do hook
         expect(mockToPDF).toHaveBeenCalledTimes(1);
     });
 
     it('displays loading state correctly if we pass loading props (optional extension)', () => {
-        // This validates if we added a visual loading feedback to the component props
+        // Valida se adicionamos um feedback visual de carregamento nas props do componente
         render(<ExportPDFButton filename="test.pdf" contentRef={mockTargetRef} isGenerating={true} />);
 
         expect(screen.getByText(/gerando\.\.\./i)).toBeInTheDocument();

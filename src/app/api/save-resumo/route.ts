@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, resumo });
 
     } catch (error) {
-        console.error("Save Resumo error:", error);
-        return NextResponse.json({ error: "Failed to save resumo" }, { status: 500 });
+        console.error("Erro ao salvar Resumo:", error);
+        return NextResponse.json({ error: "Falha ao salvar resumo" }, { status: 500 });
     }
 }

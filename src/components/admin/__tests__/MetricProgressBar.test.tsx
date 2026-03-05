@@ -7,17 +7,17 @@ describe('MetricProgressBar Component', () => {
     it('renders with 0% when current is 0', () => {
         render(<MetricProgressBar current={0} max={100} />);
 
-        // It should render the text "0 / 100"
+        // Deve renderizar o texto "0 / 100"
         expect(screen.getByText('0 / 100')).toBeInTheDocument();
     });
 
     it('renders correctly at 50% capacity', () => {
         const { container } = render(<MetricProgressBar current={50} max={100} />);
 
-        // Custom formatted text test
+        // Teste de texto formatado personalizado
         expect(screen.getByText('50 / 100')).toBeInTheDocument();
 
-        // The inner progress div should have width 50%
+        // O div interno de progresso deve ter largura de 50%
         const progressBar = container.querySelector('.bg-zinc-400');
         expect(progressBar).toHaveStyle({ width: '50%' });
     });
@@ -25,12 +25,12 @@ describe('MetricProgressBar Component', () => {
     it('uses the warning color when capacity is 100%', () => {
         const { container } = render(<MetricProgressBar current={100} max={100} />);
 
-        // Full capacity should trigger warning styles (red-500)
+        // Capacidade total deve acionar estilos de alerta (red-500)
         const progressBar = container.querySelector('.bg-red-500');
         expect(progressBar).toBeInTheDocument();
         expect(progressBar).toHaveStyle({ width: '100%' });
 
-        // Ensure the text span also gets the red error color 
+        // Garante que o span de texto também recebe a cor vermelha de erro 
         const textSpan = container.querySelector('.text-red-400');
         expect(textSpan).toBeInTheDocument();
     });
@@ -41,7 +41,7 @@ describe('MetricProgressBar Component', () => {
         expect(screen.getByText('120 / 100')).toBeInTheDocument();
 
         const progressBar = container.querySelector('.bg-red-500');
-        // Width should not exceed 100% visually
+        // A largura não deve exceder 100% visualmente
         expect(progressBar).toHaveStyle({ width: '100%' });
     });
 

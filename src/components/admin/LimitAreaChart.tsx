@@ -34,7 +34,7 @@ const CustomLimitLabel = (props: any) => {
         <g>
             <rect x={x + 5} y={y - 8} width={34} height={16} fill="#ef4444" rx={3} />
             <text x={x + 22} y={y + 3} fill="#fff" fontSize={9} fontWeight="bold" textAnchor="middle">
-                Limit
+                Limite
             </text>
         </g>
     );
@@ -48,7 +48,7 @@ export function LimitAreaChart({
     yAxisFormatter
 }: LimitAreaChartProps) {
 
-    // Custom tooltip to format matching the theme
+    // Tooltip personalizado para formatar de acordo com o tema
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
@@ -97,7 +97,7 @@ export function LimitAreaChart({
                         tickFormatter={yAxisFormatter}
                         width={45}
                         orientation="right"
-                        domain={[0, limit * 1.2]} // Set max slightly above limit so limit line is visible
+                        domain={[0, limit * 1.2]} // Define o máximo ligeiramente acima do limite para que a linha de limite fique visível
                     />
 
                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#52525b', strokeWidth: 1, strokeDasharray: '4 4' }} />

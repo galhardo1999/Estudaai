@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         const fileManager = new GoogleAIFileManager(apiKey);
 
-        /** Download a doc buffer from Supabase given its stored URL/path */
+        /** Baixa o buffer de um documento do Supabase dado sua URL/caminho armazenado */
         async function downloadFromSupabase(doc: any): Promise<Buffer | null> {
             if (!doc.url) return null;
             try {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
             }
         }
 
-        /** Re-upload a buffer to Gemini File Manager and persist the new URI in the DB */
+        /** Re-envia um buffer ao Gemini File Manager e persiste a nova URI no banco */
         async function reuploadToGemini(doc: any, buffer: Buffer, mimeType: string): Promise<string | null> {
             const tmpPath = path.join(os.tmpdir(), `${randomUUID()}_${doc.titulo || "file"}.pdf`);
             try {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
         const rawFileParts = await Promise.all(docs.map(async (doc: any) => {
             const mimeType = (doc.descricao || "application/pdf") as string;
 
-            // Priority 1: Validate that geminiUri is still alive before using it
+            // Prioridade 1: Valida que a geminiUri ainda está ativa antes de usá-la
             if (doc.geminiUri) {
                 try {
                     const fileId = doc.geminiUri.split("/files/")[1];
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
                 }
             }
 
-            // Priority 2: Download from Supabase then re-upload to Gemini for future speed
+            // Prioridade 2: Baixa do Supabase e reenvia ao Gemini para velocidade futura
             const buffer = await downloadFromSupabase(doc);
             if (buffer) {
                 const mime = doc.descricao || "application/pdf";

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// GET: List all folders for the authenticated user
+// GET: Lista todas as pastas do usuário autenticado
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
@@ -33,7 +33,7 @@ export async function GET() {
     }
 }
 
-// POST: Create a new folder
+// POST: Cria uma nova pasta
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);

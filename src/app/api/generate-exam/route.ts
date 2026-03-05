@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         const body = await request.json();
         const {
             documentIds = [],
-            tempDocs = [], // { geminiUri: string, name: string }[] — uploaded directly to Gemini, not in DB
+            tempDocs = [], // { geminiUri: string, name: string }[] — enviados diretamente ao Gemini, não estão no banco
             questionCount = 5,
             topic = "Qualquer assunto abordado no texto",
             difficulty = "medio"
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "At least one document is required" }, { status: 400 });
         }
 
-        // Only query DB if there are library document IDs
+        // Consulta o banco apenas se houver IDs de documentos da biblioteca
         let docs: any[] = [];
         if (documentIds.length > 0) {
             docs = await prisma.documento.findMany({
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         const fileManager = new GoogleAIFileManager(apiKey);
 
-        /** Download a doc buffer from Supabase given its stored URL/path */
+        /** Baixa o buffer de um documento do Supabase dado sua URL/caminho armazenado */
         async function downloadFromSupabase(doc: any): Promise<Buffer | null> {
             if (!doc.url) return null;
             try {
@@ -81,14 +81,14 @@ export async function POST(request: Request) {
             }
         }
 
-        /** Re-upload a buffer to Gemini File Manager and persist the new URI in the DB */
+        /** Re-envia um buffer ao Gemini File Manager e persiste a nova URI no banco */
         async function reuploadToGemini(doc: any, buffer: Buffer, mimeType: string): Promise<string | null> {
             const tmpPath = path.join(os.tmpdir(), `${randomUUID()}_${doc.titulo || "file"}.pdf`);
             try {
                 await writeFile(tmpPath, buffer);
                 const result = await fileManager.uploadFile(tmpPath, { mimeType, displayName: doc.titulo || doc.id });
                 const newUri = result.file.uri;
-                // Update DB so future generations use the fresh URI directly
+                // Atualiza o banco para que gerações futuras usem a URI atualizada diretamente
                 await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: newUri } });
                 console.log(`Re-uploaded doc ${doc.id} to Gemini: ${newUri}`);
                 return newUri;
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         const rawFileParts = await Promise.all(docs.map(async (doc: any) => {
             const mimeType = (doc.descricao || "application/pdf") as string;
 
-            // Priority 1: Validate that geminiUri is still alive before using it
+            // Prioridade 1: Valida que a geminiUri ainda está ativa antes de usá-la
             if (doc.geminiUri) {
                 try {
                     const fileId = doc.geminiUri.split("/files/")[1];
@@ -113,25 +113,25 @@ export async function POST(request: Request) {
                     const is403 = e?.statusCode === 403 || e?.status === 403 || String(e).includes("403") || String(e).includes("PERMISSION_DENIED");
                     if (is403) {
                         console.warn(`GeminiUri expired for doc ${doc.id}. Clearing and falling back to Supabase.`);
-                        // Clear stale URI from DB
+                        // Limpa a URI obsoleta do banco
                         await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: null } }).catch(() => { });
                     } else {
                         console.warn(`GeminiUri check failed for doc ${doc.id}:`, e);
                     }
-                    // Fall through to Supabase
+                    // Prossegue para o Supabase
                 }
             }
 
-            // Priority 2: Download from Supabase then re-upload to Gemini for future speed
+            // Prioridade 2: Baixa do Supabase e reenvia ao Gemini para velocidade futura
             const buffer = await downloadFromSupabase(doc);
             if (buffer) {
                 const mime = doc.descricao || "application/pdf";
-                // Try to re-upload so next time it's fast again
+                // Tenta reenviar para que da próxima vez seja rápido novamente
                 const newUri = await reuploadToGemini(doc, buffer, mime);
                 if (newUri) {
                     return { type: "file" as const, data: new URL(newUri), mediaType: mime };
                 }
-                // If re-upload failed, pass the buffer directly
+                // Se o reenvio falhou, passa o buffer diretamente
                 return { type: "file" as const, data: buffer, mediaType: mime };
             }
 
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
             return null;
         }));
 
-        // Append temp docs (uploaded directly to Gemini, no DB record)
+        // Anexa documentos temporários (enviados diretamente ao Gemini, sem registro no banco)
         const tempFileParts = tempDocs.map((td: unknown) => {
             if (!td || typeof td !== 'object' || !('geminiUri' in td) || typeof (td as any).geminiUri !== 'string') {
                 console.warn('Invalid tempDoc entry, skipping:', td);
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
 
         const fileParts = [...rawFileParts, ...tempFileParts].filter(part => part !== null);
 
-        // Improvement 3: Fail fast if no valid documents could be loaded
+        // Melhoria 3: Falha rápida se nenhum documento válido pôde ser carregado
         if (fileParts.length === 0) {
             return NextResponse.json({ error: "Nenhum documento acessível encontrado. Verifique se os arquivos foram carregados corretamente." }, { status: 400 });
         }
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
             ],
             temperature: 0.2, // Mantém a resposta descritiva porém concisa e lógica para questões
             onFinish: async ({ usage }) => {
-                // Fixed Vercel AI SDK token properties 
+                // Propriedades de token do Vercel AI SDK corrigidas
                 const inputTokens = usage.inputTokens ?? 0;
                 const outputTokens = usage.outputTokens ?? 0;
                 const totalTokens = usage.totalTokens ?? 0;

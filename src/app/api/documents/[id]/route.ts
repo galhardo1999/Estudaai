@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
 
-// DELETE: Remove a document from storage and database
+// DELETE: Remove um documento do armazenamento e do banco de dados
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -27,7 +27,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Handle both older public URLs and newer concise storagePaths
+        // Lida com URLs públicas antigas e storagePaths mais recentes e concisos
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
         const bucketPrefix = `${supabaseUrl}/storage/v1/object/public/documentos/`;
         let storagePath = documento.url;
@@ -53,7 +53,7 @@ export async function DELETE(
     }
 }
 
-// PATCH: Move a document to a folder (or to root by passing folderId: null)
+// PATCH: Move um documento para uma pasta (ou para a raiz passando folderId: null)
 export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> }

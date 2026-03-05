@@ -27,7 +27,7 @@ export async function GET() {
 
         return NextResponse.json({ documents });
     } catch (error) {
-        console.error("Fetch documents error:", error);
-        return NextResponse.json({ error: "Failed to fetch documents" }, { status: 500 });
+        console.error("Erro ao buscar documentos:", error);
+        return NextResponse.json({ error: "Falha ao buscar documentos" }, { status: 500 });
     }
 }

@@ -15,10 +15,10 @@ export function ActiveExamIndicator() {
     const pathname = usePathname()
     const router = useRouter()
 
-    // Don't show when on the active exam page or when no exams are active
+    // Não mostra quando está na página do exame ativo ou quando não há exames ativos
     if (activeExams.length === 0 || pathname.startsWith('/simulado/active')) return null
 
-    // Show the most recent active exam
+    // Mostra o exame ativo mais recente
     const latestExam = activeExams[activeExams.length - 1]
     const isUrgent = latestExam.questions.length > 0 && latestExam.timeRemaining <= 5 * 60
 

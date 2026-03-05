@@ -12,7 +12,7 @@ export default function SimuladoSetupPage() {
     const exam = useExam()
     const router = useRouter()
 
-    // Setup form state
+    // Estado do formulário de configuração
     type LocalDoc = { id: string; name: string; url: string; geminiUri?: string | null; isTemp?: boolean }
     const [localDocs, setLocalDocs] = useState<LocalDoc[]>([])
     const [topic, setTopic] = useState("")
@@ -21,13 +21,13 @@ export default function SimuladoSetupPage() {
     const [timeLimit, setTimeLimit] = useState(60)
     const [isUploading, setIsUploading] = useState(false)
 
-    // Library state
+    // Estado da biblioteca
     const [libraryDocs, setLibraryDocs] = useState<LibDoc[]>([])
     const [libraryFolders, setLibraryFolders] = useState<LibFolder[]>([])
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
     const [loadingLibrary, setLoadingLibrary] = useState(true)
 
-    // Fetch library on mount
+    // Busca a biblioteca na montagem
     useEffect(() => {
         const fetchLibrary = async () => {
             try {
@@ -40,7 +40,7 @@ export default function SimuladoSetupPage() {
                 setLibraryDocs(docsData.documents || [])
                 setLibraryFolders(foldersData.folders || [])
             } catch (error) {
-                console.error("Failed to fetch library:", error)
+                console.error("Falha ao buscar a biblioteca:", error)
             } finally {
                 setLoadingLibrary(false)
             }
@@ -86,7 +86,7 @@ export default function SimuladoSetupPage() {
                     const formData = new FormData()
                     formData.append("file", file)
 
-                    // Use upload-temp: goes directly to Gemini, NOT saved to library
+                    // Usa upload-temp: envia diretamente ao Gemini, NÃO salvo na biblioteca
                     const res = await fetch("/api/upload-temp", {
                         method: "POST",
                         body: formData,
@@ -103,7 +103,7 @@ export default function SimuladoSetupPage() {
                         isTemp: true,
                     }
                     setLocalDocs(prev => [...prev, tempDoc])
-                    // NOTE: NOT adding to libraryDocs — temp uploads stay out of the library
+                    // NOTA: NÃO adicionando ao libraryDocs — uploads temporários ficam fora da biblioteca
                 })
 
                 await Promise.all(uploadPromises)
@@ -169,14 +169,14 @@ export default function SimuladoSetupPage() {
 
     return (
         <div className="flex-1 flex flex-col md:flex-row items-stretch justify-start gap-6 p-6 md:p-12 min-h-screen max-w-6xl mx-auto w-full">
-            {/* Left Card: Material de Estudo */}
+            {/* Card Esquerdo: Material de Estudo */}
             <div className="w-full md:w-1/3 bg-card border border-border/50 rounded-2xl p-6 flex flex-col gap-4">
                 <div>
                     <h2 className="text-xl font-semibold mb-1">Material de Estudo</h2>
                     <p className="text-zinc-400 text-sm">Selecione documentos da biblioteca ou faça upload de novos arquivos.</p>
                 </div>
 
-                {/* Upload area */}
+                {/* Área de upload */}
                 <div>
                     <label className={`flex items-center justify-center gap-3 w-full px-4 py-4 bg-secondary/30 border border-dashed rounded-xl text-sm font-medium transition-colors ${isUploading ? 'border-primary text-primary opacity-50 cursor-not-allowed' : 'border-input hover:border-foreground/50 text-foreground cursor-pointer group'}`}>
                         {isUploading ? (
@@ -194,7 +194,7 @@ export default function SimuladoSetupPage() {
                     </label>
                 </div>
 
-                {/* Library browser — fills available space */}
+                {/* Navegador da biblioteca — preenche o espaço disponível */}
                 <div className="flex-1 overflow-y-auto border border-border/30 rounded-xl p-2 bg-secondary/10">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Biblioteca</p>
                     {loadingLibrary ? (
@@ -211,7 +211,7 @@ export default function SimuladoSetupPage() {
                     )}
                 </div>
 
-                {/* Selected documents at bottom */}
+                {/* Documentos selecionados na parte inferior */}
                 {localDocs.length > 0 && (
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Selecionados ({localDocs.length})</p>
@@ -240,7 +240,7 @@ export default function SimuladoSetupPage() {
             </div>
 
 
-            {/* Right Card: Preparar Simulado */}
+            {/* Card Direito: Preparar Simulado */}
             <div className="w-full md:w-2/3 bg-card border border-border/50 rounded-2xl p-8 flex flex-col gap-6">
                 <div>
                     <h1 className="text-2xl font-semibold mb-2">Preparar Simulado</h1>
@@ -335,7 +335,7 @@ export default function SimuladoSetupPage() {
                     <button
                         onClick={() => {
                             const examId = Math.random().toString(36).substring(2, 6).toUpperCase()
-                            // Separate library docs (have real DB ids) from temp uploads
+                            // Separa documentos da biblioteca (têm IDs reais do banco) dos uploads temporários
                             const libraryDocIds = localDocs.filter(d => !d.isTemp).map(d => d.id)
                             const tempDocs = localDocs
                                 .filter(d => d.isTemp && d.geminiUri)

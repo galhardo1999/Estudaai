@@ -35,7 +35,7 @@ interface ExamData {
 function computeStats(exams: ExamData[]) {
     const totalSimulados = exams.length
     const totalQuestoes = exams.reduce((sum, e) => sum + e.totalQuestoes, 0)
-    // pontuacao stores the raw correct answer count (not a percentage)
+    // pontuacao armazena a contagem bruta de respostas corretas (não uma porcentagem)
     const totalAcertos = exams.reduce((sum, e) => sum + e.pontuacao, 0)
     const totalErros = totalQuestoes - totalAcertos
     const totalDuracao = exams.reduce((sum, e) => sum + e.duracao, 0)
@@ -55,7 +55,7 @@ function computeEvolution(exams: ExamData[], days: number) {
         return d >= prevPeriodStart && d < periodStart
     })
 
-    // Derive percentage score (0-100) from raw correct count
+    // Deriva a pontuação percentual (0-100) a partir da contagem bruta de acertos
     const toPercent = (e: ExamData) => e.totalQuestoes > 0 ? (e.pontuacao / e.totalQuestoes) * 100 : 0
 
     const currentAvg = currentExams.length > 0
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
                 </header>
 
                 {!hasData ? (
-                    /* ── Empty State ── */
+                    /* ── Estado Vazio ── */
                     <div className="text-center py-20 bg-card border border-border/50 rounded-2xl mb-8">
                         <Target className="w-14 h-14 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-xl font-medium mb-2">Nenhum dado disponível</h3>

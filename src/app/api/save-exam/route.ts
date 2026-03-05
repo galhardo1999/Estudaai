@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, exame });
 
     } catch (error) {
-        console.error("Save Exam error:", error);
-        return NextResponse.json({ error: "Failed to save exam result" }, { status: 500 });
+        console.error("Erro ao salvar Exame:", error);
+        return NextResponse.json({ error: "Falha ao salvar resultado do exame" }, { status: 500 });
     }
 }

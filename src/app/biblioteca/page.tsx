@@ -17,11 +17,11 @@ export default function BibliotecaPage() {
     const [isRenameFolderModalOpen, setIsRenameFolderModalOpen] = useState(false)
     const [renameFolderValue, setRenameFolderValue] = useState("")
 
-    // Filter items based on current folder
+    // Filtra itens com base na pasta atual
     const currentFolders = folders.filter(f => f.parentId === (currentFolderId || undefined))
     const currentDocuments = documents.filter(d => d.folderId === (currentFolderId || undefined))
 
-    // Generate breadcrumbs path
+    // Gera o caminho de breadcrumbs
     const getBreadcrumbs = () => {
         const path = [];
         let currentId = currentFolderId;
@@ -56,7 +56,7 @@ export default function BibliotecaPage() {
     }
 
     const handleFileUploadClick = () => {
-        // Trigger the hidden file input
+        // Aciona o input de arquivo oculto
         document.getElementById('biblioteca-file-upload')?.click();
     }
 
@@ -86,7 +86,7 @@ export default function BibliotecaPage() {
                         size: data.document.size,
                         createdAt: data.document.createdAt || Date.now()
                     })
-                    // Remove this file from uploading list
+                    // Remove este arquivo da lista de upload
                     setUploadingFiles(prev => prev.filter(f => f.name !== file.name))
                 })
 
@@ -102,7 +102,7 @@ export default function BibliotecaPage() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto w-full flex flex-col h-full">
-            {/* Header & Breadcrumbs */}
+            {/* Cabeçalho & Breadcrumbs */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold text-foreground">Biblioteca de Documentos</h1>
@@ -188,7 +188,7 @@ export default function BibliotecaPage() {
                 </div>
             </div>
 
-            {/* Folder Grid */}
+            {/* Grade de Pastas */}
             {currentFolders.length > 0 && (
                 <div className="mb-8">
                     <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Pastas</h2>
@@ -233,7 +233,7 @@ export default function BibliotecaPage() {
                 </div>
             )}
 
-            {/* Files Grid */}
+            {/* Grade de Arquivos */}
             <div>
                 <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Arquivos</h2>
 
@@ -312,7 +312,7 @@ export default function BibliotecaPage() {
                             </div>
                         ))}
 
-                        {/* Uploading skeleton cards */}
+                        {/* Cartões esqueleto de upload */}
                         {uploadingFiles.map((file) => (
                             <div
                                 key={`uploading-${file.name}`}
@@ -337,7 +337,7 @@ export default function BibliotecaPage() {
                 )}
             </div>
 
-            {/* Rename Folder Modal */}
+            {/* Modal de Renomear Pasta */}
             {isRenameFolderModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-md rounded-2xl border border-border/50 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -385,7 +385,7 @@ export default function BibliotecaPage() {
                 </div>
             )}
 
-            {/* Create Folder Modal */}
+            {/* Modal de Criar Pasta */}
             {isCreateFolderModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-md rounded-2xl border border-border/50 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -433,7 +433,7 @@ export default function BibliotecaPage() {
                 </div>
             )}
 
-            {/* File Preview Modal */}
+            {/* Modal de Pré-visualização de Arquivo */}
             {previewDoc && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-4xl h-[85vh] rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -450,7 +450,7 @@ export default function BibliotecaPage() {
                             </button>
                         </div>
                         <div className="flex-1 overflow-hidden bg-zinc-950 relative">
-                            {/* Loading spinner */}
+                            {/* Spinner de carregamento */}
                             {previewLoading && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                                     <Loader2 className="w-8 h-8 text-primary animate-spin" />

@@ -18,7 +18,7 @@ export default function ExportPDFButton({ filename, contentRef, isGenerating = f
         if (!contentRef.current) return
         setLoading(true)
         try {
-            // Dynamic imports to keep bundle size minimal
+            // Importação dinâmica para evitar problemas de SSR com jsPDF e html2canvasl
             const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
                 import('html2canvas-pro'),
                 import('jspdf'),

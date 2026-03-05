@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// DELETE: Remove a folder and optionally its subfolders
+// DELETE: Remove uma pasta e opcionalmente suas subpastas
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -26,8 +26,8 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Prisma will cascade delete subfolders (onDelete: Cascade in schema)
-        // Documents in this folder will have pastaId set to null (onDelete: SetNull)
+        // Prisma vai cascatear a exclusão de subpastas (onDelete: Cascade no schema)
+        // Documentos nesta pasta terão pastaId definido como null (onDelete: SetNull)
         await prisma.pasta.delete({ where: { id } });
 
         return NextResponse.json({ success: true });
@@ -37,7 +37,7 @@ export async function DELETE(
     }
 }
 
-// PATCH: Rename a folder
+// PATCH: Renomeia uma pasta
 export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> }

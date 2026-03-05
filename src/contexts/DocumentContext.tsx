@@ -46,7 +46,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch documents and folders from database on mount
+    // Busca documentos e pastas do banco de dados na montagem
     const fetchData = useCallback(async () => {
         try {
             const [docsRes, foldersRes] = await Promise.all([
@@ -93,7 +93,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     };
 
     const addFolder = async (name: string, parentId?: string) => {
-        // Create on server first, then add to state with the real DB id
+        // Cria no servidor primeiro, depois adiciona ao estado com o id real do banco
         try {
             const res = await fetch("/api/folders", {
                 method: "POST",
@@ -117,7 +117,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     };
 
     const removeFolder = async (id: string) => {
-        // Collect all subfolder IDs recursively (for local state cleanup)
+        // Coleta todos os IDs de subpastas recursivamente (para limpeza do estado local)
         const getSubfolderIds = (folderId: string): string[] => {
             const children = folders.filter(f => f.parentId === folderId).map(f => f.id);
             return [...children, ...children.flatMap(getSubfolderIds)];
@@ -125,16 +125,16 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
 
         const idsToRemove = [id, ...getSubfolderIds(id)];
 
-        // Update local state immediately
+        // Atualiza o estado local imediatamente
         setFolders(prev => prev.filter(f => !idsToRemove.includes(f.id)));
-        // Documents in deleted folders lose their folderId
+        // Documentos em pastas excluídas perdem seu folderId
         setDocuments(prev => prev.map(d => d.folderId && idsToRemove.includes(d.folderId) ? { ...d, folderId: undefined } : d));
 
         if (currentFolderId && idsToRemove.includes(currentFolderId)) {
             setCurrentFolderId(null);
         }
 
-        // Delete on server (cascades subfolders via Prisma)
+        // Exclui no servidor (cascateia subpastas via Prisma)
         try {
             await fetch(`/api/folders/${id}`, { method: "DELETE" });
         } catch (error) {
@@ -145,7 +145,7 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     const renameFolder = async (id: string, newName: string) => {
         const trimmed = newName.trim();
         if (!trimmed) return;
-        // Optimistic update
+        // Atualização otimista
         setFolders(prev => prev.map(f => f.id === id ? { ...f, name: trimmed } : f));
         try {
             await fetch(`/api/folders/${id}`, {
@@ -159,10 +159,10 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     };
 
     const moveDocument = async (id: string, folderId: string | null) => {
-        // Update local state immediately
+        // Atualiza o estado local imediatamente
         setDocuments(prev => prev.map(d => d.id === id ? { ...d, folderId: folderId || undefined } : d));
 
-        // Persist to server
+        // Persiste no servidor
         try {
             await fetch(`/api/documents/${id}`, {
                 method: "PATCH",

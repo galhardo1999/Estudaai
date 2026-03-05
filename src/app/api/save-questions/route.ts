@@ -16,15 +16,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
-        // Find the exam by codigo and ensure it belongs to this user
+        // Encontra o exame pelo código e garante que pertence a este usuário
         const exame = await prisma.exame.findFirst({
             where: { codigo, usuarioId: session.user.id },
             orderBy: { criadoEm: "desc" },
         });
 
         if (!exame) {
-            // Exam may not exist yet (not yet saved at end) — create a placeholder
-            // This handles the case where questions are done but save-exam hasn't run
+            // O exame pode não existir ainda (não foi salvo no final) — cria um placeholder
+            // Isso trata o caso onde as questões estão prontas mas o save-exam ainda não rodou
             return NextResponse.json({ ok: false, reason: "exam_not_found" });
         }
 

@@ -6,7 +6,7 @@ import { ClientLayout } from "@/components/layout/ClientLayout"
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
 
-    // Do not wrap login/register pages with the Dashboard Sidebar layout
+    // Não envolve páginas de login/registro com o layout de Sidebar do Dashboard
     if (pathname === '/login' || pathname === '/register') {
         return <>{children}</>
     }

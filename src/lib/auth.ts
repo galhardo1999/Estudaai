@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
         },
         async session({ session, token }) {
             if (session.user && token.sub) {
-                // Attach the user's DB id to the session
+                // Anexa o id do usuário no banco à sessão
                 session.user.id = token.sub;
                 session.user.role = token.role as string | undefined;
             }

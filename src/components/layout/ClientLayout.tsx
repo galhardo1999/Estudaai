@@ -38,12 +38,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen bg-background overflow-hidden flex-col md:flex-row">
-            {/* Desktop Sidebar */}
+            {/* Barra Lateral Desktop */}
             <Sidebar />
 
-            {/* Mobile Header & Content */}
+            {/* Cabeçalho e Conteúdo Móvel */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                {/* Upload Overlay Layer */}
+                {/* Camada de Sobreposição de Upload */}
                 {isUploading && (
                     <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-4">
@@ -53,7 +53,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
 
-                {/* Mobile Header */}
+                {/* Cabeçalho Móvel */}
                 <div className="md:hidden flex items-center justify-between p-4 border-b border-border/50 shrink-0">
                     <span className="font-semibold text-lg text-primary">EstudaAI</span>
                     <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
 
-                {/* Floating Bottom Right — Exam indicator + Theme Toggle */}
+                {/* Flutuante Inferior Direito — Indicador de Exame + Alternador de Tema */}
                 <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
                     <ActiveExamIndicator />
                     <div className="bg-background/80 backdrop-blur-md rounded-full shadow-lg border border-border/50 p-1">
@@ -74,7 +74,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
 
-                {/* Mobile Sidebar Overlay */}
+                {/* Sobreposição da Barra Lateral Móvel */}
                 {isMobileMenuOpen && (
                     <div className="absolute inset-0 z-50 flex md:hidden">
                         <div className="w-72 shadow-2xl h-full flex flex-col bg-background">
@@ -89,7 +89,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
 
-                {/* Main Content Area */}
+                {/* Área de Conteúdo Principal */}
                 <div className="flex-1 overflow-y-auto">
                     {children}
                 </div>

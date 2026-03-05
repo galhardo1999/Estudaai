@@ -14,7 +14,7 @@ export async function POST(req: Request) {
             );
         }
 
-        // Check if user already exists
+        // Verifica se o usuário já existe
         const existingUser = await prisma.user.findUnique({
             where: { email },
         });
@@ -26,10 +26,10 @@ export async function POST(req: Request) {
             );
         }
 
-        // Hash the password
+        // Gera o hash da senha
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create the user
+        // Cria o usuário
         const newUser = await prisma.user.create({
             data: {
                 name,
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
             },
         });
 
-        // Hide password before returning
+        // Oculta a senha antes de retornar
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { senha: _senha, ...userWithoutPassword } = newUser;
 

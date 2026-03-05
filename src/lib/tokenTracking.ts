@@ -22,6 +22,6 @@ export async function trackTokenUsage(data: TokenUsageData) {
             }
         });
     } catch (error) {
-        console.error('Failed to track token usage:', error);
+        console.error('Falha ao rastrear uso de tokens:', error);
     }
 }

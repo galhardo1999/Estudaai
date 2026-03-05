@@ -20,7 +20,7 @@ export async function POST(request: Request) {
             return new Response(JSON.stringify({ error: "Missing exam data" }), { status: 400 });
         }
 
-        // Build per-question summary for the prompt
+        // Constrói o resumo por questão para o prompt
         const questionSummary = (questions as any[]).map((q: any, idx: number) => {
             const chosenId = userAnswers[q.id];
             const chosenOption = q.options.find((o: any) => o.id === chosenId);

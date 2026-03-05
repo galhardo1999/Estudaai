@@ -45,14 +45,14 @@ export function QuestionScreen({
 
     const progressPercentage = ((questionIndex) / totalQuestions) * 100
 
-    // Format timeRemaining as mm:ss
+    // Formata o timeRemaining como mm:ss
     const minutes = Math.floor(timeRemaining / 60)
     const seconds = timeRemaining % 60
     const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
     const isLowTime = timeRemaining <= 60
 
     const handleSelect = (optionId: string) => {
-        if (selectedOptionId) return // Already answered
+        if (selectedOptionId) return // Já respondeu
         setSelectedOptionId(optionId)
         const option = question.options.find(o => o.id === optionId)
         if (option) {
@@ -98,7 +98,7 @@ export function QuestionScreen({
                         const isAnswered = selectedOptionId !== null
                         const isCorrectOption = option.isCorrect
 
-                        // Determine state classes
+                        // Determina as classes de estado
                         let stateClasses = "bg-card border-border hover:bg-card-hover"
                         const textClasses = "text-foreground"
 
@@ -110,7 +110,7 @@ export function QuestionScreen({
                                     stateClasses = "bg-danger-bg/10 border-danger hover:bg-danger-bg/10"
                                 }
                             } else if (isCorrectOption) {
-                                // Highlight the correct one if they missed it
+                                // Destaca a correta se o usuário errou
                                 stateClasses = "border-success/50 bg-success-bg/5"
                             } else {
                                 stateClasses = "opacity-50 bg-card border-border"

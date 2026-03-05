@@ -26,16 +26,16 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(arrayBuffer);
         const mimeType = file.type || "application/octet-stream";
 
-        // 1. Save to temp file (needed for Gemini File Manager)
+        // 1. Salva em arquivo temporário (necessário para o Gemini File Manager)
         const tempFilePath = path.join(os.tmpdir(), file.name);
         await writeFile(tempFilePath, buffer);
 
-        // 2. Upload to Supabase Storage
+        // 2. Envia para o Supabase Storage
         const timestamp = Date.now();
-        // Sanitize filename: remove special chars, replace spaces with underscores
+        // Sanitiza o nome do arquivo: remove caracteres especiais, substitui espaços por underscores
         const sanitizedName = file.name
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
-            .replace(/[^a-zA-Z0-9._-]/g, "_"); // replace special chars with underscore
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+            .replace(/[^a-zA-Z0-9._-]/g, "_"); // substitui caracteres especiais por underscore
         const storagePath = `${session.user.id}/${timestamp}_${sanitizedName}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Failed to upload to storage" }, { status: 500 });
         }
 
-        // 3. Upload to Gemini File Manager (for AI processing)
+        // 3. Envia para o Gemini File Manager (para processamento da IA)
         let geminiUri = "";
         const apiKey = process.env.GEMINI_API_KEY;
 
@@ -65,25 +65,25 @@ export async function POST(request: Request) {
                 console.log(`Uploaded file ${uploadResult.file.displayName} as: ${uploadResult.file.uri}`);
             } catch (geminiError) {
                 console.error("Gemini upload error (non-fatal):", geminiError);
-                // Continue even if Gemini fails — file is still stored in Supabase
+                // Continua mesmo se o Gemini falhar — arquivo ainda está armazenado no Supabase
             }
         } else {
             console.warn("GEMINI_API_KEY not found. Skipping Gemini upload.");
         }
 
-        // 4. Clean up temp file
+        // 4. Limpa arquivo temporário
         try {
             await unlink(tempFilePath);
         } catch {
-            // Ignore cleanup errors
+            // Ignora erros de limpeza
         }
 
-        // 5. Save to database via Prisma
+        // 5. Salva no banco de dados via Prisma
         const documento = await prisma.documento.create({
             data: {
                 titulo: file.name,
                 descricao: mimeType,
-                url: storagePath, // Save internal path instead of public URL for security
+                url: storagePath, // Salva o caminho interno em vez da URL pública por segurança
                 geminiUri: geminiUri || null,
                 tamanho: file.size,
                 usuarioId: session.user.id,

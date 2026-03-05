@@ -5,7 +5,7 @@ import { experimental_useObject as useObject } from "@ai-sdk/react"
 import { useSession } from "next-auth/react"
 import { z } from "zod"
 
-// Re-use Question type shape from exam components
+// Reutiliza o tipo Question dos componentes de exame
 export type ExamQuestion = {
     id: string;
     text: string;
@@ -35,7 +35,7 @@ export type ExamState = {
     documentNames?: string[];
     retryCount: number;
     dificuldade: string;
-    /** Saved so generation can be auto-retried after a page refresh mid-stream */
+    /** Salvo para que a geração possa ser retentada automaticamente após um refresh da página durante o streaming */
     genParams?: GenParams;
 };
 
@@ -107,9 +107,9 @@ function loadFromStorage(userId: string | null | undefined): Record<string, Exam
         if (!raw) return {};
         const parsed = JSON.parse(raw) as { userId?: string; exams?: Record<string, ExamState> };
 
-        // Only discard when BOTH IDs are known and they don't match.
-        // If userId is undefined the session hasn't loaded yet (page refresh) —
-        // keep the stored data and let the user-change effect handle cleanup later.
+        // Descarta apenas quando AMBOS os IDs são conhecidos e não correspondem.
+        // Se userId for undefined, a sessão ainda não carregou (refresh da página) —
+        // mantém os dados armazenados e deixa o efeito de troca de usuário fazer a limpeza depois.
         if (userId && parsed.userId && parsed.userId !== userId) {
             sessionStorage.removeItem(STORAGE_KEY);
             return {};
@@ -136,7 +136,7 @@ function saveToStorage(userId: string | null | undefined, exams: Record<string, 
             sessionStorage.removeItem(STORAGE_KEY);
         }
     } catch {
-        // quota exceeded or similar, ignore
+        // cota excedida ou similar, ignora
     }
 }
 
@@ -147,11 +147,11 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     const prevUserId = useRef<string | null | undefined>(session?.user?.id);
 
     const [exams, setExams] = useState<Record<string, ExamState>>(() => {
-        // Load only if userId matches — prevents cross-user leakage
+        // Carrega apenas se o userId corresponder — evita vazamento entre usuários
         return loadFromStorage(session?.user?.id);
     });
 
-    // Clear exams if the user changes (e.g., logout or login as different user)
+    // Limpa os exames se o usuário mudar (ex: logout ou login com outro usuário)
     useEffect(() => {
         const currentUserId = session?.user?.id;
         if (prevUserId.current !== undefined && currentUserId !== prevUserId.current) {
@@ -165,10 +165,10 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
     const [questionsReceived, setQuestionsReceived] = useState(0);
 
-    // Store current gen params for retries
+    // Armazena os parâmetros de geração atuais para retentativas
     const currentGenParams = useRef<{ examId: string; params: GenParams } | null>(null);
 
-    // AI streaming — lives here so it persists across navigation
+    // Streaming da IA — fica aqui para persistir entre navegações
     const { submit, isLoading, object, error } = useObject({
         api: "/api/generate-exam",
         schema: questionSchema
@@ -176,7 +176,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
     const questionsStream = object?.questions ?? []
 
-    // Sync streamed questions into the generating exam + track progress
+    // Sincroniza as questões recebidas via stream no exame em geração + acompanha o progresso
     const prevStreamCount = useRef(0);
     useEffect(() => {
         if (!generatingExamId) return;
@@ -191,19 +191,19 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
                     return { ...prev, [generatingExamId]: { ...exam, questions: validQuestions } };
                 });
             }
-            // Always track the raw stream count for real-time progress display (includes partial questions)
+            // Sempre acompanha a contagem bruta do stream para exibição de progresso em tempo real (inclui questões parciais)
             setQuestionsReceived(questionsStream.length);
             prevStreamCount.current = questionsStream.length;
         }
     }, [questionsStream.length, generatingExamId]);
 
-    // Clear generatingExamId when generation finishes successfully
+    // Limpa generatingExamId quando a geração termina com sucesso
     useEffect(() => {
         if (generatingExamId && !isLoading && prevStreamCount.current > 0) {
-            // Final sync: when streaming ends, apply ALL valid questions from the stream.
-            // The last question often becomes fully valid only on the final tick where
-            // questionsStream.length hasn't changed (only its content), so the incremental
-            // effect above misses it. This guarantees every complete question is captured.
+            // Sincronização final: quando o streaming termina, aplica TODAS as questões válidas do stream.
+            // A última questão frequentemente se torna válida apenas no tick final onde
+            // questionsStream.length não mudou (apenas seu conteúdo), então o efeito incremental
+            // acima não a captura. Isso garante que toda questão completa seja registrada.
             const finalValidQuestions = (questionsStream as ExamQuestion[]).filter(
                 q => q && Array.isArray(q.options) && q.options.length > 0
             );
@@ -220,7 +220,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
             setQuestionsReceived(0);
             currentGenParams.current = null;
 
-            // Persist generated questions to DB
+            // Persiste as questões geradas no banco de dados
             const examSnapshot = exams[generatingExamId];
             const questionsToSave = finalValidQuestions.length > 0 ? finalValidQuestions : examSnapshot?.questions;
             if (questionsToSave && questionsToSave.length > 0) {
@@ -236,7 +236,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         }
     }, [isLoading, generatingExamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Handle errors during generation — retry up to MAX_RETRIES times
+    // Trata erros durante a geração — retenta até MAX_RETRIES vezes
     useEffect(() => {
         if (error && generatingExamId) {
             const examSnapshot = exams[generatingExamId];
@@ -247,14 +247,14 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
                 console.warn(`Exam generation failed. Retry ${nextRetry}/${MAX_RETRIES}...`);
                 setGenerationStatus('retrying');
 
-                // Increment retry count in state
+                // Incrementa o contador de retentativas no estado
                 setExams(prev => {
                     const exam = prev[generatingExamId];
                     if (!exam) return prev;
                     return { ...prev, [generatingExamId]: { ...exam, retryCount: nextRetry } };
                 });
 
-                // Retry after a short delay
+                // Retenta após um breve atraso
                 const { params } = currentGenParams.current;
                 const retryExamId = generatingExamId;
                 setTimeout(() => {
@@ -266,7 +266,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
             } else {
                 console.error(`Exam generation failed after ${MAX_RETRIES} retries.`, error);
                 setGenerationStatus('failed');
-                // Remove the stuck exam from state
+                // Remove o exame travado do estado
                 setExams(prev => {
                     const updated = { ...prev };
                     delete updated[generatingExamId];
@@ -280,7 +280,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         }
     }, [error, generatingExamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Persist to sessionStorage on every state change
+    // Persiste no sessionStorage a cada mudança de estado
     const isFirstMount = useRef(true);
     useEffect(() => {
         if (isFirstMount.current) {
@@ -290,27 +290,27 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         saveToStorage(session?.user?.id, exams);
     }, [exams]);
 
-    // Keep a ref of exams so the mount-time auto-retry effect can read the initial value
+    // Mantém uma ref dos exames para que o efeito de auto-retentativa na montagem possa ler o valor inicial
     const examsRef = useRef(exams);
     useEffect(() => { examsRef.current = exams; }, [exams]);
 
-    // Auto-retry stuck exams on mount (e.g. page reloaded while generation was streaming)
+    // Auto-retenta exames travados na montagem (ex: página recarregada enquanto a geração estava em streaming)
     useEffect(() => {
         const stuckExam = Object.values(examsRef.current).find(
             e => e.isActive && !e.isFinished && e.questions.length === 0 && e.genParams
         );
         if (stuckExam?.genParams) {
-            // Short delay to let the streaming hook initialise
+            // Breve atraso para deixar o hook de streaming inicializar
             setTimeout(() => {
                 generateExam(stuckExam.examId, stuckExam.genParams!);
             }, 800);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track which exam the user is currently viewing
+    // Rastreia qual exame o usuário está visualizando no momento
     const [viewingExamId, setViewingExamId] = useState<string | null>(null);
 
-    // Countdown timer — only runs for the exam the user is currently viewing
+    // Cronômetro regressivo — roda apenas para o exame que o usuário está visualizando no momento
     useEffect(() => {
         if (!viewingExamId) return;
 
@@ -341,7 +341,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const generateExam = useCallback((examId: string, params: GenParams) => {
-        // Persist genParams so we can auto-retry if the page reloads mid-generation
+        // Persiste genParams para permitir auto-retentativa se a página recarregar durante a geração
         setExams(prev => {
             const exam = prev[examId];
             if (!exam) return prev;

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(arrayBuffer);
         const mimeType = file.type || "application/pdf";
 
-        // Save to temp file and upload directly to Gemini File Manager
+        // Salva em arquivo temporário e envia diretamente ao Gemini File Manager
         const tempFilePath = path.join(os.tmpdir(), `temp_${Date.now()}_${file.name}`);
         await writeFile(tempFilePath, buffer);
 
@@ -45,10 +45,10 @@ export async function POST(request: Request) {
             await unlink(tempFilePath).catch(() => { });
         }
 
-        // Return a temp doc object — NOT saved to database or library
+        // Retorna um objeto de documento temporário — NÃO salvo no banco ou na biblioteca
         return NextResponse.json({
             document: {
-                id: `temp_${Date.now()}`, // fake local ID, not in DB
+                id: `temp_${Date.now()}`, // ID local falso, não está no banco
                 name: file.name,
                 geminiUri,
                 mimeType,
