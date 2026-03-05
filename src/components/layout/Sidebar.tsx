@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react"
+import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRight, ClipboardList, Landmark, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { signOut, useSession } from "next-auth/react"
 import { useExam } from "@/contexts/ExamContext"
@@ -25,6 +25,7 @@ export function Sidebar({ className }: SidebarProps) {
     const pathname = usePathname()
     const [isSimuladosExpanded, setIsSimuladosExpanded] = useState(pathname.startsWith('/simulado') || pathname.startsWith('/historico/simulados'))
     const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo') || pathname.startsWith('/historico/resumos'))
+    const [isConcursosExpanded, setIsConcursosExpanded] = useState(pathname.startsWith('/concursos') || pathname.startsWith('/enem'))
     const exam = useExam()
 
     const formatTime = (seconds: number) => {
@@ -176,6 +177,56 @@ export function Sidebar({ className }: SidebarProps) {
                                     )}
                                 >
                                     <span className="truncate">Histórico de Resumos</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                    {/* Grupo de Concursos */}
+                    <div className="flex flex-col gap-1">
+                        <button
+                            onClick={() => {
+                                if (isCollapsed) {
+                                    setIsCollapsed(false)
+                                    setIsConcursosExpanded(true)
+                                } else {
+                                    setIsConcursosExpanded(!isConcursosExpanded)
+                                }
+                            }}
+                            className={cn(
+                                "flex items-center justify-between py-2 text-sm font-medium rounded-lg transition-colors w-full",
+                                isCollapsed ? "justify-center px-0" : "px-3 gap-3",
+                                (pathname.startsWith("/concursos") || pathname.startsWith("/enem")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                            )}
+                            title={isCollapsed ? "Concursos" : undefined}
+                        >
+                            <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
+                                <Landmark className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/concursos") || pathname.startsWith("/enem")) ? "text-primary" : "")} />
+                                {!isCollapsed && <span className="truncate">Concursos</span>}
+                            </div>
+                            {!isCollapsed && (
+                                <ChevronRight className={cn("w-4 h-4 transition-transform", isConcursosExpanded ? "rotate-90" : "")} />
+                            )}
+                        </button>
+
+                        {isConcursosExpanded && !isCollapsed && (
+                            <div className="flex flex-col gap-1 pl-9 pr-3 mt-1">
+                                <Link
+                                    href="/concursos"
+                                    className={cn(
+                                        "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
+                                        pathname.startsWith("/concursos") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <span className="truncate">Concursos Públicos</span>
+                                </Link>
+                                <Link
+                                    href="/enem"
+                                    className={cn(
+                                        "flex items-center py-2 text-sm font-medium rounded-lg transition-colors px-3",
+                                        pathname.startsWith("/enem") ? "text-foreground bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <span className="truncate">Enem</span>
                                 </Link>
                             </div>
                         )}

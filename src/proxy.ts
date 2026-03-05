@@ -33,5 +33,5 @@ export default auth((req) => {
 }) as unknown as (req: NextRequest) => Promise<NextResponse>;
 
 export const config = {
-    matcher: ["/dashboard/:path*", "/simulado/:path*", "/resumo/:path*", "/resumos/:path*", "/historico/:path*", "/biblioteca/:path*", "/admin/:path*", "/login", "/register"],
+    matcher: ["/dashboard/:path*", "/simulado/:path*", "/resumo/:path*", "/resumos/:path*", "/historico/:path*", "/biblioteca/:path*", "/concursos/:path*", "/enem/:path*", "/admin/:path*", "/login", "/register"],
 };
