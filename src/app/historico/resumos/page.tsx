@@ -1,12 +1,11 @@
 import { BookOpen } from "lucide-react"
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { ResumosHistoricoTabs } from "./ResumosHistoricoTabs"
 
 export default async function HistoricoResumosPage() {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session || !session.user || !session.user.id) {
         return (

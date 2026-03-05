@@ -290,6 +290,41 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
         saveToStorage(session?.user?.id, exams);
     }, [exams]);
 
+    // ─── Auto-save no banco de dados a cada 30s ───────────────────────────
+    const lastDbSave = useRef(0);
+    useEffect(() => {
+        const AUTOSAVE_INTERVAL = 30_000; // 30 segundos
+
+        const interval = setInterval(() => {
+            const now = Date.now();
+            if (now - lastDbSave.current < AUTOSAVE_INTERVAL) return;
+
+            const activeEntries = Object.values(exams).filter(
+                e => e.isActive && !e.isFinished && e.examId
+            );
+
+            for (const exam of activeEntries) {
+                const estadoAtual = {
+                    currentQuestionIndex: exam.currentQuestionIndex,
+                    userAnswers: exam.userAnswers,
+                    correctCount: exam.correctCount,
+                    wrongCount: exam.wrongCount,
+                    timeRemaining: exam.timeRemaining,
+                };
+
+                fetch(`/api/exam-state/${encodeURIComponent(exam.examId)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estadoAtual }),
+                }).catch(err => console.error('Auto-save exam state failed:', err));
+            }
+
+            lastDbSave.current = now;
+        }, AUTOSAVE_INTERVAL);
+
+        return () => clearInterval(interval);
+    }, [exams]);
+
     // Mantém uma ref dos exames para que o efeito de auto-retentativa na montagem possa ler o valor inicial
     const examsRef = useRef(exams);
     useEffect(() => { examsRef.current = exams; }, [exams]);

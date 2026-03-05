@@ -1,10 +1,16 @@
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { GET } from '../route';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@/lib/auth';
 
-vi.mock('next-auth/next', () => ({
-    getServerSession: vi.fn(),
+// 0. Mock rate limiter (prevents real Upstash Redis connection)
+vi.mock('@/lib/rateLimit', () => ({
+    applyRateLimit: vi.fn().mockResolvedValue(null),
+    RATE_LIMITS: { ai: { limit: 5, windowMs: 60000 }, upload: { limit: 10, windowMs: 60000 }, register: { limit: 5, windowMs: 300000 }, default: { limit: 30, windowMs: 60000 } },
+    getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+}));
+vi.mock('@/lib/auth', () => ({
+    auth: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', async (importOriginal) => {
@@ -26,13 +32,13 @@ describe('/api/documents', () => {
 
     describe('GET', () => {
         test('should return 401 if unauthenticated', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce(null);
+            vi.mocked(auth).mockResolvedValueOnce(null);
             const res = await GET();
             expect(res.status).toBe(401);
         });
 
         test('should return documents mapped correctly on success', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
             const mockDate = new Date();
             (prisma.documento.findMany as any).mockResolvedValueOnce([
@@ -78,7 +84,7 @@ describe('/api/documents', () => {
         });
 
         test('should return 500 on internal errors', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
             (prisma.documento.findMany as any).mockRejectedValueOnce(new Error('DB Error'));
 
             const res = await GET();

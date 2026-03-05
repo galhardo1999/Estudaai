@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
+import { createFolderInputSchema, formatZodErrors } from "@/lib/validations";
 
 // GET: Lista todas as pastas do usuário autenticado
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -36,17 +37,22 @@ export async function GET() {
 // POST: Cria uma nova pasta
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "folders-post");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await request.json();
-        const { name, parentId } = body;
+        const parsed = createFolderInputSchema.safeParse(body);
 
-        if (!name || typeof name !== "string" || !name.trim()) {
-            return NextResponse.json({ error: "Folder name is required" }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json({ error: formatZodErrors(parsed.error) }, { status: 400 });
         }
+
+        const { name, parentId } = parsed.data;
 
         if (parentId) {
             const parentFolder = await prisma.pasta.findUnique({ where: { id: parentId } });

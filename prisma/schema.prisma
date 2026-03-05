@@ -76,38 +76,47 @@ model Pasta {
   parent     Pasta?   @relation("PastaSubpastas", fields: [parentId], references: [id], onDelete: Cascade)
   subpastas  Pasta[]  @relation("PastaSubpastas")
   documentos Documento[]
+
+  @@index([usuarioId])
 }
 
 model Documento {
   id        String   @id @default(uuid())
   titulo    String
-  descricao String
+  descricao String   @default("") // Descrição textual do documento (campo legado)
+  mimeType  String   @default("application/pdf") // Tipo MIME do arquivo
   url       String   // Link para o Supabase Storage
   geminiUri String?  // URI do Google Gemini File Manager (para processamento IA)
-  tamanho   Int?     // File size in bytes
+  tamanho   Int?     // Tamanho do arquivo em bytes
   criadoEm  DateTime @default(now())
   usuarioId String
   usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   pastaId   String?
   pasta     Pasta?   @relation(fields: [pastaId], references: [id], onDelete: SetNull)
   exames    Exame[]
+
+  @@index([usuarioId])
 }
 
 model Exame {
-  id            String   @id @default(uuid())
-  codigo        String?  // Short human-readable code (e.g. A3F2)
-  pontuacao     Int
-  totalQuestoes Int
-  duracao       Int      // Tempo gasto em segundos
-  dificuldade   String   @default("medio") // "facil" | "medio" | "dificil"
-  questoes      Json?    // Estrutura das perguntas passadas
-  respostas     Json?    // Mapeamento do id_da_questao -> id_da_opcao escolhida
-  criadoEm      DateTime @default(now())
-  usuarioId     String
-  usuario       User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  documentoId   String?
-  documento     Documento? @relation(fields: [documentoId], references: [id], onDelete: SetNull)
+  id              String   @id @default(uuid())
+  codigo          String?  // Código curto legível (ex: A3F2)
+  pontuacao       Int
+  totalQuestoes   Int
+  duracao         Int      // Tempo gasto em segundos
+  dificuldade     String   @default("medio") // "facil" | "medio" | "dificil"
+  status          String   @default("em_andamento") // "em_andamento" | "finalizado"
+  questoes        Json?    // Estrutura das perguntas passadas
+  respostas       Json?    // Mapeamento do id_da_questao -> id_da_opcao escolhida
+  estadoAtual     Json?    // Estado parcial do exame para persistência (currentQuestionIndex, userAnswers, timeRemaining, etc.)
+  criadoEm        DateTime @default(now())
+  usuarioId       String
+  usuario         User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  documentoId     String?
+  documento       Documento? @relation(fields: [documentoId], references: [id], onDelete: SetNull)
   nomesDocumentos String[] // Array de nomes dos documentos usados na geração
+
+  @@index([usuarioId, criadoEm])
 }
 
 model Resumo {
@@ -118,6 +127,8 @@ model Resumo {
   criadoEm   DateTime @default(now())
   usuarioId   String
   usuario     User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, criadoEm])
 }
 
 model TokenUsage {
@@ -130,4 +141,6 @@ model TokenUsage {
   criadoEm     DateTime @default(now())
   usuarioId    String?
   usuario      User?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, criadoEm])
 }

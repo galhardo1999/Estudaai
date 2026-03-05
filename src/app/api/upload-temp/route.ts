@@ -3,12 +3,16 @@ import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { writeFile, unlink } from "fs/promises";
 import path from "path";
 import os from "os";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { MAX_FILE_SIZE, isAllowedMimeType } from "@/lib/validations";
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "upload-temp", RATE_LIMITS.upload);
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -20,6 +24,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
+        // Validação de tamanho do arquivo (50MB)
+        if (file.size > MAX_FILE_SIZE) {
+            return NextResponse.json(
+                { error: "Arquivo excede o limite de 50MB" },
+                { status: 413 }
+            );
+        }
+
+        // Validação de MIME type
+        const mimeType = file.type || "application/pdf";
+        if (!isAllowedMimeType(mimeType)) {
+            return NextResponse.json(
+                { error: `Tipo de arquivo não permitido: ${mimeType}` },
+                { status: 400 }
+            );
+        }
+
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
@@ -27,7 +48,6 @@ export async function POST(request: Request) {
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const mimeType = file.type || "application/pdf";
 
         // Salva em arquivo temporário e envia diretamente ao Gemini File Manager
         const tempFilePath = path.join(os.tmpdir(), `temp_${Date.now()}_${file.name}`);

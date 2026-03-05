@@ -1,17 +1,16 @@
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function proxy(req: NextRequest) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    const isAuth = !!token;
+export default auth((req) => {
+    const isAuth = !!req.auth;
     const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/register");
 
     if (isAuthPage) {
         if (isAuth) {
             return NextResponse.redirect(new URL("/dashboard", req.url));
         }
-        return null;
+        return NextResponse.next();
     }
 
     if (!isAuth) {
@@ -26,10 +25,12 @@ export async function proxy(req: NextRequest) {
     }
 
     const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
-    if (isAdminRoute && token?.role !== "ADMIN") {
+    if (isAdminRoute && req.auth?.user && (req.auth.user as { role?: string }).role !== "ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-}
+
+    return NextResponse.next();
+}) as unknown as (req: NextRequest) => Promise<NextResponse>;
 
 export const config = {
     matcher: ["/dashboard/:path*", "/simulado/:path*", "/resumo/:path*", "/resumos/:path*", "/historico/:path*", "/biblioteca/:path*", "/admin/:path*", "/login", "/register"],

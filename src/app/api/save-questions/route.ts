@@ -1,20 +1,30 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
+import { saveQuestionsInputSchema, formatZodErrors } from "@/lib/validations";
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "save-questions");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { codigo, questoes } = await request.json();
+        const body = await request.json();
+        const parsed = saveQuestionsInputSchema.safeParse(body);
 
-        if (!codigo || !questoes) {
-            return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: formatZodErrors(parsed.error) },
+                { status: 400 }
+            );
         }
+
+        const { codigo, questoes } = parsed.data;
 
         // Encontra o exame pelo código e garante que pertence a este usuário
         const exame = await prisma.exame.findFirst({

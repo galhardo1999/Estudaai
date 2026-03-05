@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { FileText, Layers, TrendingUp, ChevronLeft } from "lucide-react"
@@ -8,7 +7,7 @@ import SimuladoPDFWrapper from "./_components/SimuladoPDFWrapper"
 
 export default async function ResultadoPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session || !session.user || !session.user.id) {
         redirect("/login")

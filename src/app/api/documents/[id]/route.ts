@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
+import { moveDocumentInputSchema, formatZodErrors } from "@/lib/validations";
 
 // DELETE: Remove um documento do armazenamento e do banco de dados
 export async function DELETE(
@@ -10,7 +11,10 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "documents-delete");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -59,14 +63,23 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "documents-patch");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const { id } = await params;
         const body = await request.json();
-        const { folderId } = body;
+        const parsed = moveDocumentInputSchema.safeParse(body);
+
+        if (!parsed.success) {
+            return NextResponse.json({ error: formatZodErrors(parsed.error) }, { status: 400 });
+        }
+
+        const { folderId } = parsed.data;
 
         const documento = await prisma.documento.findUnique({ where: { id } });
 

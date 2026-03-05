@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "documents-get");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

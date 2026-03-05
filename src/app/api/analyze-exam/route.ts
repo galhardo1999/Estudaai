@@ -1,30 +1,37 @@
 import { streamText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { trackTokenUsage } from "@/lib/tokenTracking";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { analyzeExamInputSchema, formatZodErrors } from "@/lib/validations";
+import type { ExamQuestion } from "@/types";
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "analyze-exam", RATE_LIMITS.ai);
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
 
         const body = await request.json();
-        const { questions, userAnswers, correctCount, totalQuestions, dificuldade = "medio" } = body;
+        const parsed = analyzeExamInputSchema.safeParse(body);
 
-        if (!questions || !userAnswers) {
-            return new Response(JSON.stringify({ error: "Missing exam data" }), { status: 400 });
+        if (!parsed.success) {
+            return new Response(JSON.stringify({ error: formatZodErrors(parsed.error) }), { status: 400 });
         }
 
+        const { questions, userAnswers, correctCount, totalQuestions, dificuldade } = parsed.data;
+
         // Constrói o resumo por questão para o prompt
-        const questionSummary = (questions as any[]).map((q: any, idx: number) => {
+        const questionSummary = (questions as ExamQuestion[]).map((q, idx) => {
             const chosenId = userAnswers[q.id];
-            const chosenOption = q.options.find((o: any) => o.id === chosenId);
-            const correctOption = q.options.find((o: any) => o.isCorrect);
+            const chosenOption = q.options.find(o => o.id === chosenId);
+            const correctOption = q.options.find(o => o.isCorrect);
             const isCorrect = chosenOption?.isCorrect ?? false;
 
             return `Q${idx + 1}: ${q.text}

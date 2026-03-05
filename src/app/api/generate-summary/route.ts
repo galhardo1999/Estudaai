@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase";
 import { writeFile, unlink } from "fs/promises";
@@ -11,21 +10,32 @@ import path from "path";
 import os from "os";
 import { randomUUID } from "crypto";
 import { trackTokenUsage } from "@/lib/tokenTracking";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { generateSummaryInputSchema, formatZodErrors } from "@/lib/validations";
+import type { DocumentoRecord, AIFilePart } from "@/types";
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "generate-summary", RATE_LIMITS.ai);
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
 
         if (!session || !session.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await request.json();
-        const { documentIds, summaryType = "resumo" } = body;
+        const parsed = generateSummaryInputSchema.safeParse(body);
 
-        if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
-            return NextResponse.json({ error: "At least one document ID is required" }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: formatZodErrors(parsed.error) },
+                { status: 400 }
+            );
         }
+
+        const { documentIds, summaryType } = parsed.data;
 
         const docs = await prisma.documento.findMany({
             where: {
@@ -47,13 +57,13 @@ export async function POST(request: Request) {
         const fileManager = new GoogleAIFileManager(apiKey);
 
         /** Baixa o buffer de um documento do Supabase dado sua URL/caminho armazenado */
-        async function downloadFromSupabase(doc: any): Promise<Buffer | null> {
+        async function downloadFromSupabase(doc: DocumentoRecord): Promise<Buffer | null> {
             if (!doc.url) return null;
             try {
                 let storagePath = doc.url;
                 if (doc.url.startsWith("http")) {
                     const match = doc.url.match(/\/documentos\/(.+)$/);
-                    storagePath = match ? match[1] : null;
+                    storagePath = match ? match[1] : "";
                     if (!storagePath) {
                         const res = await fetch(doc.url);
                         if (res.ok) return Buffer.from(await res.arrayBuffer());
@@ -71,7 +81,7 @@ export async function POST(request: Request) {
         }
 
         /** Re-envia um buffer ao Gemini File Manager e persiste a nova URI no banco */
-        async function reuploadToGemini(doc: any, buffer: Buffer, mimeType: string): Promise<string | null> {
+        async function reuploadToGemini(doc: DocumentoRecord, buffer: Buffer, mimeType: string): Promise<string | null> {
             const tmpPath = path.join(os.tmpdir(), `${randomUUID()}_${doc.titulo || "file"}.pdf`);
             try {
                 await writeFile(tmpPath, buffer);
@@ -88,8 +98,8 @@ export async function POST(request: Request) {
             }
         }
 
-        const rawFileParts = await Promise.all(docs.map(async (doc: any) => {
-            const mimeType = (doc.descricao || "application/pdf") as string;
+        const rawFileParts = await Promise.all(docs.map(async (doc): Promise<AIFilePart | null> => {
+            const mimeType = (doc.mimeType || "application/pdf") as string;
 
             // Prioridade 1: Valida que a geminiUri ainda está ativa antes de usá-la
             if (doc.geminiUri) {
@@ -97,8 +107,10 @@ export async function POST(request: Request) {
                     const fileId = doc.geminiUri.split("/files/")[1];
                     if (fileId) await fileManager.getFile(fileId); // throws if expired/missing
                     return { type: "file" as const, data: new URL(doc.geminiUri), mediaType: mimeType };
-                } catch (e: any) {
-                    const is403 = e?.statusCode === 403 || e?.status === 403 || String(e).includes("403") || String(e).includes("PERMISSION_DENIED");
+                } catch (e: unknown) {
+                    const errorStr = String(e);
+                    const errorObj = e as { statusCode?: number; status?: number };
+                    const is403 = errorObj?.statusCode === 403 || errorObj?.status === 403 || errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED");
                     if (is403) {
                         console.warn(`GeminiUri expired for doc ${doc.id}. Clearing and falling back to Supabase.`);
                         await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: null } }).catch(() => { });
@@ -111,7 +123,7 @@ export async function POST(request: Request) {
             // Prioridade 2: Baixa do Supabase e reenvia ao Gemini para velocidade futura
             const buffer = await downloadFromSupabase(doc);
             if (buffer) {
-                const mime = doc.descricao || "application/pdf";
+                const mime = doc.mimeType || "application/pdf";
                 const newUri = await reuploadToGemini(doc, buffer, mime);
                 if (newUri) {
                     return { type: "file" as const, data: new URL(newUri), mediaType: mime };
@@ -123,7 +135,7 @@ export async function POST(request: Request) {
             return null;
         }));
 
-        const fileParts = rawFileParts.filter(part => part !== null);
+        const fileParts = rawFileParts.filter((part): part is AIFilePart => part !== null);
 
         if (fileParts.length === 0) {
             return NextResponse.json({ error: "Nenhum documento acessível encontrado." }, { status: 400 });
@@ -206,9 +218,9 @@ export async function POST(request: Request) {
             });
 
             return result.toTextStreamResponse();
-        } catch (apiError: any) {
+        } catch (apiError: unknown) {
             console.error("Gemini API Error details:", apiError);
-            const msg = apiError?.message || "Failed to call Gemini API";
+            const msg = (apiError instanceof Error) ? apiError.message : "Failed to call Gemini API";
             return NextResponse.json({ error: msg }, { status: 400 });
         }
     } catch (error) {

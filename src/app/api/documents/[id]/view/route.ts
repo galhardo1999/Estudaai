@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "documents-view");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return new NextResponse("Unauthorized", { status: 401 });
         }

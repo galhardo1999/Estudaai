@@ -2,10 +2,16 @@ import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { GET, POST } from '../route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@/lib/auth';
 
-vi.mock('next-auth/next', () => ({
-    getServerSession: vi.fn(),
+// 0. Mock rate limiter (must be before route import)
+vi.mock('@/lib/rateLimit', () => ({
+    applyRateLimit: vi.fn().mockResolvedValue(null),
+    RATE_LIMITS: { ai: { limit: 5, windowMs: 60000 }, upload: { limit: 10, windowMs: 60000 }, register: { limit: 5, windowMs: 300000 }, default: { limit: 30, windowMs: 60000 } },
+    getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+}));
+vi.mock('@/lib/auth', () => ({
+    auth: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', async (importOriginal) => {
@@ -36,13 +42,13 @@ describe('/api/folders', () => {
 
     describe('GET', () => {
         test('should return 401 if unauthenticated', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce(null);
+            vi.mocked(auth).mockResolvedValueOnce(null);
             const res = await GET();
             expect(res.status).toBe(401);
         });
 
         test('should return folders mapped correctly on success', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
             const mockDate = new Date();
             (prisma.pasta.findMany as any).mockResolvedValueOnce([
@@ -67,23 +73,23 @@ describe('/api/folders', () => {
 
     describe('POST', () => {
         test('should return 401 if unauthenticated', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce(null);
+            vi.mocked(auth).mockResolvedValueOnce(null);
             const res = await POST(createMockRequest('POST', { name: 'New Folder' }));
             expect(res.status).toBe(401);
         });
 
         test('should return 400 if name is missing or empty', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
             const res1 = await POST(createMockRequest('POST', {}));
             expect(res1.status).toBe(400);
 
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
             const res2 = await POST(createMockRequest('POST', { name: '   ' }));
             expect(res2.status).toBe(400);
         });
 
         test('should return 403 if parentFolder does not exist or user does not own it', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
             (prisma.pasta.findUnique as any).mockResolvedValueOnce(null); // Parent missing
 
             const res = await POST(createMockRequest('POST', { name: 'New SubFolder', parentId: 'parent-1' }));
@@ -94,7 +100,7 @@ describe('/api/folders', () => {
         });
 
         test('should create a folder correctly on valid request', async () => {
-            vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+            vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
             const mockDate = new Date();
             (prisma.pasta.create as any).mockResolvedValueOnce({

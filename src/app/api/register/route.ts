@@ -1,18 +1,25 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { registerInputSchema, formatZodErrors } from "@/lib/validations";
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { email, name, password } = body;
+        const rateLimitResponse = await applyRateLimit(req, "register", RATE_LIMITS.register);
+        if (rateLimitResponse) return rateLimitResponse;
 
-        if (!email || !name || !password) {
+        const body = await req.json();
+        const parsed = registerInputSchema.safeParse(body);
+
+        if (!parsed.success) {
             return NextResponse.json(
-                { error: "Todos os campos são obrigatórios." },
+                { error: formatZodErrors(parsed.error) },
                 { status: 400 }
             );
         }
+
+        const { email, name, password } = parsed.data;
 
         // Verifica se o usuário já existe
         const existingUser = await prisma.user.findUnique({

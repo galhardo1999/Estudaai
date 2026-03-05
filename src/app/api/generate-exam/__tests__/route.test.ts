@@ -2,11 +2,17 @@ import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@/lib/auth';
 import { trackTokenUsage } from '@/lib/tokenTracking';
 import { streamObject } from 'ai';
 
-vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));
+// 0. Mock rate limiter (prevents real Upstash Redis connection)
+vi.mock('@/lib/rateLimit', () => ({
+    applyRateLimit: vi.fn().mockResolvedValue(null),
+    RATE_LIMITS: { ai: { limit: 5, windowMs: 60000 }, upload: { limit: 10, windowMs: 60000 }, register: { limit: 5, windowMs: 300000 }, default: { limit: 30, windowMs: 60000 } },
+    getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+}));
+vi.mock('@/lib/auth', () => ({ auth: vi.fn() }));
 vi.mock('ai', () => ({ streamObject: vi.fn() }));
 vi.mock('@ai-sdk/google', () => ({
     createGoogleGenerativeAI: vi.fn(() => vi.fn(() => 'mocked-google-model')),
@@ -57,22 +63,22 @@ describe('POST /api/generate-exam', () => {
     }
 
     test('should return 401 if user is not authenticated', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce(null);
+        vi.mocked(auth).mockResolvedValueOnce(null);
         const res = await POST(createMockRequest());
         expect(res.status).toBe(401);
     });
 
     test('should return 400 if both documentIds and tempDocs are empty', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
         const res = await POST(createMockRequest({ documentIds: [], tempDocs: [] }));
 
         expect(res.status).toBe(400);
         const json = await res.json();
-        expect(json.error).toBe('At least one document is required');
+        expect(json.error).toContain('Pelo menos um documento é necessário');
     });
 
     test('should process valid document payloads and initiate streamObject', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
         // Mocka um documento vindo do banco com uma URI válida do Gemini
         (prisma.documento.findMany as any).mockResolvedValueOnce([
@@ -110,7 +116,7 @@ describe('POST /api/generate-exam', () => {
     });
 
     test('should return 400 if filtering results in zero valid accessible files', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
         // Banco encontra o documento mas ele NÃO tem url nem geminiUri
         (prisma.documento.findMany as any).mockResolvedValueOnce([
             { id: 'doc-1', usuarioId: 'user-1' }

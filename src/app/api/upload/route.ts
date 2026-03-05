@@ -3,14 +3,18 @@ import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { writeFile, unlink } from "fs/promises";
 import path from "path";
 import os from "os";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { MAX_FILE_SIZE, isAllowedMimeType } from "@/lib/validations";
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "upload", RATE_LIMITS.upload);
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -22,9 +26,25 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
+        // Validação de tamanho do arquivo (50MB)
+        if (file.size > MAX_FILE_SIZE) {
+            return NextResponse.json(
+                { error: "Arquivo excede o limite de 50MB" },
+                { status: 413 }
+            );
+        }
+
+        // Validação de MIME type
+        const mimeType = file.type || "application/octet-stream";
+        if (!isAllowedMimeType(mimeType)) {
+            return NextResponse.json(
+                { error: `Tipo de arquivo não permitido: ${mimeType}` },
+                { status: 400 }
+            );
+        }
+
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const mimeType = file.type || "application/octet-stream";
 
         // 1. Salva em arquivo temporário (necessário para o Gemini File Manager)
         const tempFilePath = path.join(os.tmpdir(), file.name);
@@ -82,7 +102,8 @@ export async function POST(request: Request) {
         const documento = await prisma.documento.create({
             data: {
                 titulo: file.name,
-                descricao: mimeType,
+                descricao: "",
+                mimeType: mimeType,
                 url: storagePath, // Salva o caminho interno em vez da URL pública por segurança
                 geminiUri: geminiUri || null,
                 tamanho: file.size,

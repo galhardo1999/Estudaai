@@ -2,13 +2,20 @@ import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@/lib/auth';
 import { trackTokenUsage } from '@/lib/tokenTracking';
 import { streamText } from 'ai';
 
+// 0. Mock rate limiter (must be before route import)
+vi.mock('@/lib/rateLimit', () => ({
+    applyRateLimit: vi.fn().mockResolvedValue(null),
+    RATE_LIMITS: { ai: { limit: 5, windowMs: 60000 }, upload: { limit: 10, windowMs: 60000 }, register: { limit: 5, windowMs: 300000 }, default: { limit: 30, windowMs: 60000 } },
+    getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
+}));
+
 // 1. Mock server side NextAuth
-vi.mock('next-auth/next', () => ({
-    getServerSession: vi.fn(),
+vi.mock('@/lib/auth', () => ({
+    auth: vi.fn(),
 }));
 
 // 2. Mock AI SDKs
@@ -66,7 +73,7 @@ describe('POST /api/generate-summary', () => {
     }
 
     test('should return 401 if user is not authenticated', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce(null);
+        vi.mocked(auth).mockResolvedValueOnce(null);
 
         const req = createMockRequest();
         const res = await POST(req);
@@ -77,18 +84,18 @@ describe('POST /api/generate-summary', () => {
     });
 
     test('should return 400 if documentIds is missing or empty', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
         const req = createMockRequest({ documentIds: [] });
         const res = await POST(req);
 
         expect(res.status).toBe(400);
         const json = await res.json();
-        expect(json.error).toBe('At least one document ID is required');
+        expect(json.error).toContain('documentIds');
     });
 
     test('should return 403 if no documents are found in the DB for the user', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
         // Mock DB finding nothing
         (prisma.documento.findMany as any).mockResolvedValueOnce([]);
 
@@ -99,7 +106,7 @@ describe('POST /api/generate-summary', () => {
     });
 
     test('should successfully initiate AI stream when valid documents are provided', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
 
         // Mock DB finding a document with a Gemini URI
         (prisma.documento.findMany as any).mockResolvedValueOnce([
@@ -123,7 +130,7 @@ describe('POST /api/generate-summary', () => {
     });
 
     test('should return 500 cleanly if GEMINI_API_KEY is not configured', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
         (prisma.documento.findMany as any).mockResolvedValueOnce([
             { id: 'doc-1', usuarioId: 'user-1', geminiUri: 'https://gemini-uri/test.pdf' }
         ]);
@@ -137,7 +144,7 @@ describe('POST /api/generate-summary', () => {
     });
 
     test('should return 400 safely if the streamText fails internally', async () => {
-        vi.mocked(getServerSession).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
+        vi.mocked(auth).mockResolvedValueOnce({ user: { id: 'user-1' } } as any);
         (prisma.documento.findMany as any).mockResolvedValueOnce([
             { id: 'doc-1', usuarioId: 'user-1', geminiUri: 'https://gemini-uri/test.pdf' }
         ]);

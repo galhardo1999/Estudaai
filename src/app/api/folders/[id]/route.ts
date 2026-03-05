@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rateLimit";
+import { renameFolderInputSchema, formatZodErrors } from "@/lib/validations";
 
 // DELETE: Remove uma pasta e opcionalmente suas subpastas
 export async function DELETE(
@@ -9,7 +10,10 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "folders-delete");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -43,17 +47,23 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const rateLimitResponse = await applyRateLimit(request, "folders-patch");
+        if (rateLimitResponse) return rateLimitResponse;
+
+        const session = await auth();
         if (!session || !session.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const { id } = await params;
-        const { name } = await request.json();
+        const body = await request.json();
+        const parsed = renameFolderInputSchema.safeParse(body);
 
-        if (!name || !name.trim()) {
-            return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json({ error: formatZodErrors(parsed.error) }, { status: 400 });
         }
+
+        const { name } = parsed.data;
 
         const pasta = await prisma.pasta.findUnique({ where: { id } });
 

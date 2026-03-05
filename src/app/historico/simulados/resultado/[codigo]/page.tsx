@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { FileText, Layers, TrendingUp, ChevronLeft } from "lucide-react"
@@ -7,7 +6,7 @@ import Link from "next/link"
 
 export default async function ResultadoPage({ params }: { params: Promise<{ codigo: string }> }) {
     const { codigo } = await params;
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session || !session.user || !session.user.id) {
         redirect("/login")

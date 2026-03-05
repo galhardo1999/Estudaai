@@ -1,12 +1,11 @@
 import { BrainCircuit, Clock, FileText, Target, ChevronRight } from "lucide-react"
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 
 export default async function HistoricoPage() {
     // 1. Get the current user session
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session || !session.user || !session.user.id) {
         return (
