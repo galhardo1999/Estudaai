@@ -7,6 +7,7 @@ import { BrainCircuit, LogOut, Target, BookOpen, Library, ChevronLeft, ChevronRi
 import { cn } from "@/lib/utils"
 import { signOut, useSession } from "next-auth/react"
 import { useExam } from "@/contexts/ExamContext"
+import { useEnemExam } from "@/contexts/EnemExamContext"
 
 interface SidebarProps {
     className?: string
@@ -27,6 +28,7 @@ export function Sidebar({ className }: SidebarProps) {
     const [isResumosExpanded, setIsResumosExpanded] = useState(pathname.startsWith('/resumo') || pathname.startsWith('/historico/resumos'))
     const [isConcursosExpanded, setIsConcursosExpanded] = useState(pathname.startsWith('/concursos') || pathname.startsWith('/enem'))
     const exam = useExam()
+    const enemExam = useEnemExam()
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60)
@@ -275,6 +277,55 @@ export function Sidebar({ className }: SidebarProps) {
                             >
                                 <div className="relative">
                                     <ClipboardList className="w-5 h-5 text-primary" />
+                                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-success rounded-full animate-pulse" />
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+
+                {/* Provas ENEM Ativas */}
+                {enemExam.activeEnemExams.length > 0 && !isCollapsed && (
+                    <div className="mt-2 mb-4">
+                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-2">
+                            Provas ENEM Ativas ({enemExam.activeEnemExams.length})
+                        </h3>
+                        <div className="flex flex-col gap-2">
+                            {enemExam.activeEnemExams.map((e) => (
+                                <Link
+                                    key={e.examId}
+                                    href={`/enem/${e.ano}/${e.dia}/${e.examId}`}
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors group"
+                                >
+                                    <div className="relative">
+                                        <GraduationCap className="w-5 h-5 text-emerald-400" />
+                                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-success rounded-full animate-pulse" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                            ENEM {e.ano} - {e.dia === 'dia1' ? 'Dia 1' : 'Dia 2'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground tabular-nums">
+                                            ⏱ {formatTime(e.timeRemaining)}
+                                        </p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {enemExam.activeEnemExams.length > 0 && isCollapsed && (
+                    <div className="flex flex-col items-center gap-2 mb-4">
+                        {enemExam.activeEnemExams.map((e) => (
+                            <Link
+                                key={e.examId}
+                                href={`/enem/${e.ano}/${e.dia}/${e.examId}`}
+                                className="flex justify-center"
+                                title={`ENEM ${e.ano} ${e.dia === 'dia1' ? 'Dia 1' : 'Dia 2'} — ${formatTime(e.timeRemaining)}`}
+                            >
+                                <div className="relative">
+                                    <GraduationCap className="w-5 h-5 text-emerald-400" />
                                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-success rounded-full animate-pulse" />
                                 </div>
                             </Link>

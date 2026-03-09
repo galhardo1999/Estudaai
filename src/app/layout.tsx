@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { DocumentProvider } from "@/contexts/DocumentContext";
 import { ExamProvider } from "@/contexts/ExamContext";
+import { EnemExamProvider } from "@/contexts/EnemExamContext";
 
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
@@ -44,9 +45,11 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ExamProvider>
-              <DocumentProvider>
-                <MainLayoutWrapper>{children}</MainLayoutWrapper>
-              </DocumentProvider>
+              <EnemExamProvider>
+                <DocumentProvider>
+                  <MainLayoutWrapper>{children}</MainLayoutWrapper>
+                </DocumentProvider>
+              </EnemExamProvider>
             </ExamProvider>
           </ThemeProvider>
         </SessionProvider>

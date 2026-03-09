@@ -24,7 +24,7 @@ interface EnemArea {
 const areasEnem: EnemArea[] = [
     {
         id: "linguagens",
-        nome: "Linguagens, Códigos e suas Tecnologias",
+        nome: "Linguagens e Códigos",
         sigla: "Linguagens",
         icon: Pen,
         cor: "text-rose-400",
@@ -54,8 +54,8 @@ const areasEnem: EnemArea[] = [
     },
     {
         id: "humanas",
-        nome: "Ciências Humanas e suas Tecnologias",
-        sigla: "Humanas",
+        nome: "Ciências Humanas",
+        sigla: "Ciências Humanas",
         icon: Globe2,
         cor: "text-amber-400",
         corBg: "bg-amber-500/15",
@@ -85,7 +85,7 @@ const areasEnem: EnemArea[] = [
     {
         id: "natureza",
         nome: "Ciências da Natureza e suas Tecnologias",
-        sigla: "Natureza",
+        sigla: "Ciências da Natureza",
         icon: Microscope,
         cor: "text-emerald-400",
         corBg: "bg-emerald-500/15",
@@ -115,7 +115,7 @@ const areasEnem: EnemArea[] = [
     {
         id: "matematica",
         nome: "Matemática e suas Tecnologias",
-        sigla: "Matemática",
+        sigla: "Matemática e suas Tecnologias",
         icon: Calculator,
         cor: "text-blue-400",
         corBg: "bg-blue-500/15",
@@ -184,7 +184,7 @@ const provasAnteriores = [
     { ano: "2022", status: "Disponível", cor: "bg-primary/5 border-primary/20 text-primary" },
     { ano: "2023", status: "Disponível", cor: "bg-primary/5 border-primary/20 text-primary" },
     { ano: "2024", status: "Disponível", cor: "bg-primary/5 border-primary/20 text-primary" },
-    { ano: "2025", status: "Em breve", cor: "bg-[#0A2540]/5 border-[#0A2540]/20 text-[#0A2540]" },
+    { ano: "2025", status: "Disponível", cor: "bg-primary/5 border-primary/20 text-primary" },
 ]
 
 /* ─── Skeleton ──────────────────────────────────────────────────── */
@@ -304,14 +304,7 @@ function AreaCard({ area, onOpenDetail }: { area: EnemArea; onOpenDetail: (a: En
                 {area.descricao}
             </p>
 
-            {/* Tags preview */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
-                {area.topicos.slice(0, 3).map((t) => (
-                    <span key={t} className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border", area.corBg, area.corBorder, area.cor)}>
-                        {t}
-                    </span>
-                ))}
-            </div>
+
 
             {/* CTA */}
             <div className="flex items-center justify-end pt-3 border-t border-border/30 mt-auto">
