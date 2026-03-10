@@ -1,42 +1,19 @@
 "use client"
 
+import { use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, BookOpen, Calculator, Clock, FileText, Lock } from "lucide-react"
+import { ArrowLeft, Clock, FileText, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { diasConfig, isDiaDisponivel } from "@/lib/enem-config"
 
-const dias = [
-    {
-        dia: "Dia 1",
-        slug: "dia1",
-        areas: ["Linguagens, Códigos e suas Tecnologias", "Ciências Humanas e suas Tecnologias", "Redação"],
-        questoes: 90,
-        tempo: "5h30",
-        cor: "text-rose-400",
-        corBg: "bg-rose-500/15",
-        corBorder: "border-rose-500/30",
-        corGlow: "hover:shadow-rose-500/10",
-        icon: BookOpen,
-        disponivel: true,
-        descricao: "Inclui a prova de Linguagens (45 questões) e Ciências Humanas (45 questões), além da prova de Redação.",
-    },
-    {
-        dia: "Dia 2",
-        slug: "dia2",
-        areas: ["Ciências da Natureza e suas Tecnologias", "Matemática e suas Tecnologias"],
-        questoes: 90,
-        tempo: "5h",
-        cor: "text-blue-400",
-        corBg: "bg-blue-500/15",
-        corBorder: "border-blue-500/30",
-        corGlow: "hover:shadow-blue-500/10",
-        icon: Calculator,
-        disponivel: false,
-        descricao: "Inclui a prova de Ciências da Natureza (Biologia, Física e Química) e Matemática (45 questões cada).",
-    },
-]
-
-export default function Enem2017Page() {
+export default function EnemAnoPage({ params }: { params: Promise<{ ano: string }> }) {
+    const { ano } = use(params)
     const router = useRouter()
+
+    const dias = diasConfig.map((d) => ({
+        ...d,
+        disponivel: isDiaDisponivel(ano, d.slug),
+    }))
 
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground font-sans p-6 md:p-12">
@@ -59,7 +36,7 @@ export default function Enem2017Page() {
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">ENEM</p>
-                            <h1 className="text-3xl font-medium leading-none">Prova 2017</h1>
+                            <h1 className="text-3xl font-medium leading-none">Prova {ano}</h1>
                         </div>
                     </div>
                     <p className="text-muted-foreground max-w-xl mt-3">
@@ -74,7 +51,7 @@ export default function Enem2017Page() {
                         return (
                             <div
                                 key={item.dia}
-                                onClick={() => item.disponivel && router.push(`/enem/2017/${item.slug}`)}
+                                onClick={() => item.disponivel && router.push(`/enem/${ano}/${item.slug}`)}
                                 className={cn(
                                     "relative group bg-card border border-border/50 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col",
                                     item.disponivel
