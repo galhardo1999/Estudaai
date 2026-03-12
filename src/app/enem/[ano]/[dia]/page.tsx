@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Globe, BookOpen, Calculator, AlertTriangle, Loader2 } from "lucide-react"
 import { useEnemExam, type EnemQuestion } from "@/contexts/EnemExamContext"
 import { diasConfig, isDiaDisponivel, type DiaConfig } from "@/lib/enem-config"
+import { getExamData } from "@/Provas/ENEM/getExamData"
 
 /* ─── Types ────────────────────────────────────────────────────── */
 interface JsonQuestion {
@@ -138,7 +139,7 @@ export default function EnemDiaPage({ params }: { params: Promise<{ ano: string;
     useEffect(() => {
         if (!disponivel || !diaConfig) return
 
-        import(`@/Provas/Enem/${ano}/enem-${ano}-${dia}.json`)
+        getExamData(ano, dia)
             .then((mod) => {
                 setProvaData(mod.default.secoes as Record<string, JsonQuestion[]>)
                 // Se dia 1, abre modal de idioma automaticamente

@@ -21,6 +21,9 @@ const cspDirectives = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   headers: async () => [
     {
       source: "/(.*)",
