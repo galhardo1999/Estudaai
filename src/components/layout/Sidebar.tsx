@@ -37,10 +37,11 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     return (
-        <aside className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>
+        <aside role="navigation" aria-label="Menu principal" className={cn("h-screen bg-card border-r border-border/50 flex flex-col font-sans shrink-0 hidden md:flex transition-all duration-300 relative", isCollapsed ? "w-20" : "w-72", className)}>
             {/* Alternar Recolher */}
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
+                aria-label={isCollapsed ? "Expandir menu" : "Recolher menu"}
                 className="absolute -right-3 top-6 w-6 h-6 bg-card border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-zinc-800/50 transition-colors z-50 hidden md:flex"
             >
                 {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -49,7 +50,7 @@ export function Sidebar({ className }: SidebarProps) {
             {/* Marca */}
             <div className="h-16 flex items-center px-6 border-b border-border/50">
                 <div className={cn("flex items-center text-foreground font-semibold text-lg transition-all", isCollapsed ? "justify-center w-full" : "gap-2")}>
-                    <BrainCircuit className="w-6 h-6 shrink-0 text-primary" />
+                    <BrainCircuit aria-hidden="true" className="w-6 h-6 shrink-0 text-primary" />
                     {!isCollapsed && <span>EstudaAI</span>}
                 </div>
             </div>
@@ -67,7 +68,7 @@ export function Sidebar({ className }: SidebarProps) {
                         )}
                         title={isCollapsed ? "Dashboard" : undefined}
                     >
-                        <BrainCircuit className={cn("w-5 h-5 shrink-0", pathname === "/dashboard" ? "text-primary" : "")} />
+                        <BrainCircuit aria-hidden="true" className={cn("w-5 h-5 shrink-0", pathname === "/dashboard" ? "text-primary" : "")} />
                         {!isCollapsed && <span className="truncate">Dashboard</span>}
                     </Link>
                     <Link
@@ -79,7 +80,7 @@ export function Sidebar({ className }: SidebarProps) {
                         )}
                         title={isCollapsed ? "Biblioteca de Documentos" : undefined}
                     >
-                        <Library className={cn("w-5 h-5 shrink-0", pathname === "/biblioteca" ? "text-primary" : "")} />
+                        <Library aria-hidden="true" className={cn("w-5 h-5 shrink-0", pathname === "/biblioteca" ? "text-primary" : "")} />
                         {!isCollapsed && <span className="truncate">Biblioteca de Documentos</span>}
                     </Link>
                     {/* Grupo de Simulados */}
@@ -99,9 +100,10 @@ export function Sidebar({ className }: SidebarProps) {
                                 (pathname.startsWith("/simulado") || pathname.startsWith("/historico/simulados")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                             )}
                             title={isCollapsed ? "Simulados" : undefined}
+                            aria-expanded={isSimuladosExpanded}
                         >
                             <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                                <Target className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/simulado") || pathname.startsWith("/historico/simulados")) ? "text-primary" : "")} />
+                                <Target aria-hidden="true" className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/simulado") || pathname.startsWith("/historico/simulados")) ? "text-primary" : "")} />
                                 {!isCollapsed && <span className="truncate">Simulados</span>}
                             </div>
                             {!isCollapsed && (
@@ -150,9 +152,10 @@ export function Sidebar({ className }: SidebarProps) {
                                 (pathname.startsWith("/resumo") || pathname.startsWith("/historico/resumos")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                             )}
                             title={isCollapsed ? "Resumo de Estudos" : undefined}
+                            aria-expanded={isResumosExpanded}
                         >
                             <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                                <BookOpen className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/resumo") || pathname.startsWith("/historico/resumos")) ? "text-primary" : "")} />
+                                <BookOpen aria-hidden="true" className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/resumo") || pathname.startsWith("/historico/resumos")) ? "text-primary" : "")} />
                                 {!isCollapsed && <span className="truncate">Resumo de Estudos</span>}
                             </div>
                             {!isCollapsed && (
@@ -200,9 +203,10 @@ export function Sidebar({ className }: SidebarProps) {
                                 (pathname.startsWith("/concursos") || pathname.startsWith("/enem")) ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-zinc-800/50"
                             )}
                             title={isCollapsed ? "Concursos" : undefined}
+                            aria-expanded={isConcursosExpanded}
                         >
                             <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                                <Landmark className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/concursos") || pathname.startsWith("/enem")) ? "text-primary" : "")} />
+                                <Landmark aria-hidden="true" className={cn("w-5 h-5 shrink-0", (pathname.startsWith("/concursos") || pathname.startsWith("/enem")) ? "text-primary" : "")} />
                                 {!isCollapsed && <span className="truncate">Concursos</span>}
                             </div>
                             {!isCollapsed && (
@@ -352,8 +356,9 @@ export function Sidebar({ className }: SidebarProps) {
                             onClick={() => signOut({ callbackUrl: '/login' })}
                             className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                             title="Sair"
+                            aria-label="Sair da conta"
                         >
-                            <LogOut className="w-5 h-5" />
+                            <LogOut aria-hidden="true" className="w-5 h-5" />
                         </button>
                     </>
                 ) : (

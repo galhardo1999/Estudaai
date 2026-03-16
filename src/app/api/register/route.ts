@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
         if (existingUser) {
             return NextResponse.json(
-                { error: "Este e-mail já está em uso." },
+                { error: "Não foi possível completar o registro. Tente novamente." },
                 { status: 400 }
             );
         }

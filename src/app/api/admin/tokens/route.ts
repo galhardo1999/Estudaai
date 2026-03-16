@@ -7,7 +7,8 @@ export async function GET() {
     try {
         const session = await auth();
 
-        if (!session || !session.user || session.user.role !== "ADMIN") {
+        const userRole = (session?.user as { role?: string } | undefined)?.role || "USER";
+        if (!session || !session.user || userRole !== "ADMIN") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -24,26 +25,7 @@ export async function GET() {
         const todayStart = startOfDay(now);
         const sevenDaysAgo = subDays(todayStart, 6);
 
-        // 1. Current metrics
-        const currentMinuteUsages = await prisma.tokenUsage.findMany({
-            where: {
-                modelo: modelName,
-                criadoEm: { gte: oneMinuteAgo }
-            }
-        });
-
-        const todayUsages = await prisma.tokenUsage.findMany({
-            where: {
-                modelo: modelName,
-                criadoEm: { gte: todayStart }
-            }
-        });
-
-        const currentRpm = currentMinuteUsages.length;
-        const currentTpm = currentMinuteUsages.reduce((acc, usage) => acc + usage.totalTokens, 0);
-        const currentRpd = todayUsages.length;
-
-        // 2. Historical data for charts (last 60 minutes for RPM/TPM, last 7 days for RPD)
+        // 1. Busca apenas 2 queries: últimos 60 min e últimos 7 dias
         const sixtyMinutesAgo = subMinutes(now, 59);
         const allRecentMinuteUsages = await prisma.tokenUsage.findMany({
             where: {
@@ -60,6 +42,14 @@ export async function GET() {
             },
             orderBy: { criadoEm: 'asc' }
         });
+
+        // Deriva métricas atuais filtrando em memória (evita 2 queries extras)
+        const currentMinuteUsages = allRecentMinuteUsages.filter(u => u.criadoEm >= oneMinuteAgo);
+        const todayUsages = allRecentDayUsages.filter(u => u.criadoEm >= todayStart);
+
+        const currentRpm = currentMinuteUsages.length;
+        const currentTpm = currentMinuteUsages.reduce((acc, usage) => acc + usage.totalTokens, 0);
+        const currentRpd = todayUsages.length;
 
         // Aggregate by minute for RPM/TPM
         const minuteAggregation: Record<string, { requests: number; tokens: number }> = {};

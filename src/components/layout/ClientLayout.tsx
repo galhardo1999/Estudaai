@@ -38,6 +38,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen bg-background overflow-hidden flex-col md:flex-row">
+            {/* Skip Navigation */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg"
+            >
+                Pular para o conteúdo principal
+            </a>
+
             {/* Barra Lateral Desktop */}
             <Sidebar />
 
@@ -57,11 +65,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <div className="md:hidden flex items-center justify-between p-4 border-b border-border/50 shrink-0">
                     <span className="font-semibold text-lg text-primary">EstudaAI</span>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Sair">
-                            <LogOut className="w-5 h-5" />
+                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Sair" aria-label="Sair da conta">
+                            <LogOut aria-hidden="true" className="w-5 h-5" />
                         </button>
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors">
-                            <Menu className="w-6 h-6" />
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Abrir menu de navegação">
+                            <Menu aria-hidden="true" className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
@@ -76,7 +84,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
                 {/* Sobreposição da Barra Lateral Móvel */}
                 {isMobileMenuOpen && (
-                    <div className="absolute inset-0 z-50 flex md:hidden">
+                    <div role="dialog" aria-label="Menu de navegação" className="absolute inset-0 z-50 flex md:hidden">
                         <div className="w-72 shadow-2xl h-full flex flex-col bg-background">
                             <Sidebar
                                 className="flex"
@@ -90,7 +98,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 )}
 
                 {/* Área de Conteúdo Principal */}
-                <div className="flex-1 overflow-y-auto">
+                <div id="main-content" className="flex-1 overflow-y-auto">
                     {children}
                 </div>
             </div>

@@ -102,6 +102,18 @@ export const saveResumoInputSchema = z.object({
     conteudo: z.string().min(1, "Conteúdo é obrigatório"),
 });
 
+/** PUT /api/exam-state/[codigo] */
+export const examStateUpdateSchema = z.object({
+    estadoAtual: z.object({
+        currentQuestionIndex: z.number().int().min(0),
+        userAnswers: z.record(z.string(), z.string()),
+        correctCount: z.number().int().min(0),
+        wrongCount: z.number().int().min(0),
+        timeRemaining: z.number().int().min(0),
+    }).optional(),
+    status: z.enum(["em_andamento", "finalizado"]).optional(),
+});
+
 /** POST /api/save-questions */
 export const saveQuestionsInputSchema = z.object({
     codigo: z.string().min(1, "Código do exame é obrigatório"),
@@ -144,7 +156,7 @@ export function isAllowedMimeType(mimeType: string): boolean {
             return mimeType.startsWith(allowed.replace("/*", "/"));
         }
         return mimeType === allowed;
-    }) || mimeType.startsWith("image/");
+    });
 }
 
 // ─── Helper para formatar erros do Zod ────────────────────────────────────────

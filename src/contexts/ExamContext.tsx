@@ -368,11 +368,20 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
     const activeExams = Object.values(exams).filter(e => e.isActive && !e.isFinished);
 
+const MAX_ACTIVE_EXAMS = 5;
+
     const startExam = useCallback((timeLimit: number, questionCount: number, examId: string, documentNames?: string[], dificuldade = "medio") => {
-        setExams(prev => ({
-            ...prev,
-            [examId]: createDefaultExam(examId, timeLimit, questionCount, documentNames, dificuldade),
-        }));
+        setExams(prev => {
+            const updated = { ...prev };
+            // Remove o exame ativo mais antigo se o limite for atingido
+            const activeIds = Object.keys(updated).filter(id => updated[id].isActive && !updated[id].isFinished);
+            if (activeIds.length >= MAX_ACTIVE_EXAMS) {
+                const oldestId = activeIds[0]; // As entradas mais antigas vêm primeiro
+                delete updated[oldestId];
+            }
+            updated[examId] = createDefaultExam(examId, timeLimit, questionCount, documentNames, dificuldade);
+            return updated;
+        });
     }, []);
 
     const generateExam = useCallback((examId: string, params: GenParams) => {

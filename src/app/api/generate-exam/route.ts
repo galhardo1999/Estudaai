@@ -5,14 +5,10 @@ import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { supabaseAdmin } from "@/lib/supabase";
-import { writeFile, unlink } from "fs/promises";
-import path from "path";
-import os from "os";
-import { randomUUID } from "crypto";
 import { trackTokenUsage } from "@/lib/tokenTracking";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { generateExamInputSchema, formatZodErrors } from "@/lib/validations";
+import { resolveDocumentFileParts } from "@/lib/gemini-documents";
 import type { DocumentoRecord, AIFilePart } from "@/types";
 
 export async function POST(request: Request) {
@@ -69,90 +65,11 @@ export async function POST(request: Request) {
         // Remove literal quotes and trim whitespace that might be left by bun/dotenv parser
         apiKey = apiKey.replace(/^["']|["']$/g, '').trim();
 
-        console.log(`[DEBUG] GEMINI_API_KEY length: ${apiKey.length}, starts with: ${apiKey.substring(0, 4)}`);
-
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         const fileManager = new GoogleAIFileManager(apiKey);
 
-        /** Baixa o buffer de um documento do Supabase dado sua URL/caminho armazenado */
-        async function downloadFromSupabase(doc: DocumentoRecord): Promise<Buffer | null> {
-            if (!doc.url) return null;
-            try {
-                let storagePath = doc.url;
-                if (doc.url.startsWith("http")) {
-                    const match = doc.url.match(/\/documentos\/(.+)$/);
-                    storagePath = match ? match[1] : "";
-                    if (!storagePath) return null;
-                }
-                const { data, error } = await supabaseAdmin.storage.from("documentos").download(storagePath);
-                if (data && !error) return Buffer.from(await data.arrayBuffer());
-                console.error(`Supabase download error for doc ${doc.id}:`, error);
-                return null;
-            } catch (e) {
-                console.error(`Failed to download doc ${doc.id} from Supabase:`, e);
-                return null;
-            }
-        }
-
-        /** Re-envia um buffer ao Gemini File Manager e persiste a nova URI no banco */
-        async function reuploadToGemini(doc: DocumentoRecord, buffer: Buffer, mimeType: string): Promise<string | null> {
-            const tmpPath = path.join(os.tmpdir(), `${randomUUID()}_${doc.titulo || "file"}.pdf`);
-            try {
-                await writeFile(tmpPath, buffer);
-                const result = await fileManager.uploadFile(tmpPath, { mimeType, displayName: doc.titulo || doc.id });
-                const newUri = result.file.uri;
-                // Atualiza o banco para que gerações futuras usem a URI atualizada diretamente
-                await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: newUri } });
-                console.log(`Re-uploaded doc ${doc.id} to Gemini: ${newUri}`);
-                return newUri;
-            } catch (e) {
-                console.error(`Failed to re-upload doc ${doc.id} to Gemini:`, e);
-                return null;
-            } finally {
-                await unlink(tmpPath).catch(() => { });
-            }
-        }
-
-        const rawFileParts = await Promise.all(docs.map(async (doc): Promise<AIFilePart | null> => {
-            const mimeType = (doc.mimeType || "application/pdf") as string;
-
-            // Prioridade 1: Valida que a geminiUri ainda está ativa antes de usá-la
-            if (doc.geminiUri) {
-                try {
-                    const fileId = doc.geminiUri.split("/files/")[1];
-                    if (fileId) await fileManager.getFile(fileId); // throws if expired/missing
-                    return { type: "file" as const, data: new URL(doc.geminiUri), mediaType: mimeType };
-                } catch (e: unknown) {
-                    const errorStr = String(e);
-                    const errorObj = e as { statusCode?: number; status?: number };
-                    const is403 = errorObj?.statusCode === 403 || errorObj?.status === 403 || errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED");
-                    if (is403) {
-                        console.warn(`GeminiUri expired for doc ${doc.id}. Clearing and falling back to Supabase.`);
-                        // Limpa a URI obsoleta do banco
-                        await prisma.documento.update({ where: { id: doc.id }, data: { geminiUri: null } }).catch(() => { });
-                    } else {
-                        console.warn(`GeminiUri check failed for doc ${doc.id}:`, e);
-                    }
-                    // Prossegue para o Supabase
-                }
-            }
-
-            // Prioridade 2: Baixa do Supabase e reenvia ao Gemini para velocidade futura
-            const buffer = await downloadFromSupabase(doc);
-            if (buffer) {
-                const mime = doc.mimeType || "application/pdf";
-                // Tenta reenviar para que da próxima vez seja rápido novamente
-                const newUri = await reuploadToGemini(doc, buffer, mime);
-                if (newUri) {
-                    return { type: "file" as const, data: new URL(newUri), mediaType: mime };
-                }
-                // Se o reenvio falhou, passa o buffer diretamente
-                return { type: "file" as const, data: buffer, mediaType: mime };
-            }
-
-            console.warn(`Doc ${doc.id} has no accessible content. Skipping.`);
-            return null;
-        }));
+        // Resolve documentos da biblioteca em file parts usando módulo compartilhado
+        const libraryFileParts = await resolveDocumentFileParts(docs, fileManager);
 
         // Anexa documentos temporários (enviados diretamente ao Gemini, sem registro no banco)
         const tempFileParts: (AIFilePart | null)[] = tempDocs.map((td) => {
@@ -164,9 +81,9 @@ export async function POST(request: Request) {
             }
         });
 
-        const fileParts = [...rawFileParts, ...tempFileParts].filter((part): part is AIFilePart => part !== null);
+        const fileParts = [...libraryFileParts, ...tempFileParts.filter((part): part is AIFilePart => part !== null)];
 
-        // Melhoria 3: Falha rápida se nenhum documento válido pôde ser carregado
+        // Falha rápida se nenhum documento válido pôde ser carregado
         if (fileParts.length === 0) {
             return NextResponse.json({ error: "Nenhum documento acessível encontrado. Verifique se os arquivos foram carregados corretamente." }, { status: 400 });
         }

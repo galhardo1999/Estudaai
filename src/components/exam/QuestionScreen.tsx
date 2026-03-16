@@ -65,7 +65,14 @@ export function QuestionScreen({
             {/* Top Bar area */}
             <div className="flex items-center gap-4 py-4 px-6 md:px-12 w-full max-w-5xl mx-auto mt-4">
                 {/* Progress Bar */}
-                <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                <div
+                    className="flex-1 h-1.5 bg-border rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={Math.round(progressPercentage)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Progresso: questão ${questionIndex + 1} de ${totalQuestions}`}
+                >
                     <div
                         className="h-full bg-primary transition-all duration-300 ease-out"
                         style={{ width: `${progressPercentage}%` }}
@@ -74,11 +81,12 @@ export function QuestionScreen({
 
                 <div className="flex items-center gap-4 text-sm font-medium text-zinc-400">
                     <span>{questionIndex + 1} / {totalQuestions}</span>
-                    <span className={cn(
+                    <span aria-live="polite" aria-atomic="true" className={cn(
                         "font-mono tabular-nums transition-colors",
                         isLowTime ? "text-danger animate-pulse" : "text-zinc-400"
                     )}>
-                        ⏱ {formattedTime}
+                        <span className="sr-only">Tempo restante:</span>
+                        ⌘ {formattedTime}
                     </span>
                 </div>
             </div>
@@ -146,10 +154,10 @@ export function QuestionScreen({
                                                     "flex items-center gap-2 font-medium mb-2",
                                                     isCorrectOption ? "text-success" : "text-danger"
                                                 )}>
-                                                    {isCorrectOption ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                                                    {isCorrectOption ? <Check aria-hidden="true" className="w-4 h-4" /> : <X aria-hidden="true" className="w-4 h-4" />}
                                                     {isCorrectOption ? "Isso mesmo!" : "Incorreto"}
                                                 </div>
-                                                <p className="text-zinc-300 leading-relaxed">
+                                                <p className="text-muted-foreground leading-relaxed">
                                                     {option.explanation}
                                                 </p>
                                             </div>

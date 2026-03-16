@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { applyRateLimit } from "@/lib/rateLimit";
+import { examStateUpdateSchema, formatZodErrors } from "@/lib/validations";
 
 // GET: Recupera o estado parcial de um exame ativo
 export async function GET(
@@ -63,7 +64,16 @@ export async function PUT(
 
         const { codigo } = await params;
         const body = await request.json();
-        const { estadoAtual, status } = body;
+        const parsed = examStateUpdateSchema.safeParse(body);
+
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: formatZodErrors(parsed.error) },
+                { status: 400 }
+            );
+        }
+
+        const { estadoAtual, status } = parsed.data;
 
         const exame = await prisma.exame.findFirst({
             where: {

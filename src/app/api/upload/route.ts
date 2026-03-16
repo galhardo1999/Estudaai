@@ -3,6 +3,7 @@ import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { writeFile, unlink } from "fs/promises";
 import path from "path";
 import os from "os";
+import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(arrayBuffer);
 
         // 1. Salva em arquivo temporário (necessário para o Gemini File Manager)
-        const tempFilePath = path.join(os.tmpdir(), file.name);
+        const tempFilePath = path.join(os.tmpdir(), `${randomUUID()}_upload`);
         await writeFile(tempFilePath, buffer);
 
         // 2. Envia para o Supabase Storage

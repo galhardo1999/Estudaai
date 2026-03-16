@@ -69,17 +69,18 @@ export default function LoginPage() {
                 </p>
 
                 {error && (
-                    <div className="w-full p-3 mb-6 text-sm text-danger-foreground bg-danger-bg rounded-lg border border-danger/20 text-center">
+                    <div role="alert" className="w-full p-3 mb-6 text-sm text-danger-foreground bg-danger-bg rounded-lg border border-danger/20 text-center">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleCredentialsLogin} className="w-full flex flex-col gap-4 mb-6">
                     <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Mail aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <input
                             type="email"
                             placeholder="Seu e-mail"
+                            aria-label="Endereço de e-mail"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -87,10 +88,11 @@ export default function LoginPage() {
                         />
                     </div>
                     <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Lock aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <input
                             type="password"
                             placeholder="Sua senha"
+                            aria-label="Senha"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
